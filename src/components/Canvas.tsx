@@ -38,18 +38,22 @@ export const Canvas: React.FC = () => {
   const [modalPosition, setModalPosition] = useState<Point>({ x: 0, y: 0 })
 
   const [polyPoints, setPolyPoints] = useState<Point[]>([])
+  const initializedRef = useRef(false)
 
   useEffect(() => {
-    if (containerRef.current && view.offset.x === 0 && view.offset.y === 0) {
-      setView({
-        ...view,
-        offset: {
-          x: containerRef.current.clientWidth / 2,
-          y: containerRef.current.clientHeight / 2,
-        },
-      })
+    if (!initializedRef.current && containerRef.current) {
+      if (view.offset.x === 0 && view.offset.y === 0) {
+        setView((prev) => ({
+          ...prev,
+          offset: {
+            x: containerRef.current!.clientWidth / 2,
+            y: containerRef.current!.clientHeight / 2,
+          },
+        }))
+      }
+      initializedRef.current = true
     }
-  }, [])
+  }, [view.offset.x, view.offset.y, setView])
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault()
