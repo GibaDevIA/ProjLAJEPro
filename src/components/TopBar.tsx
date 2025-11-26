@@ -7,67 +7,59 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 
 export const TopBar: React.FC = () => {
   const { tool, setTool } = useDrawing()
 
+  const tools = [
+    {
+      id: 'select',
+      icon: MousePointer2,
+      label: 'Seleção',
+      onClick: () => setTool('select'),
+      className: '',
+    },
+    {
+      id: 'line',
+      icon: Minus,
+      label: 'Linha',
+      onClick: () => setTool('line'),
+      className: 'rotate-45',
+    },
+    {
+      id: 'rectangle',
+      icon: Square,
+      label: 'Retângulo por Medida',
+      onClick: () => setTool('rectangle'),
+      className: '',
+    },
+    {
+      id: 'pan',
+      icon: Move,
+      label: 'Pan',
+      onClick: () => setTool('pan'),
+      className: '',
+    },
+  ] as const
+
   return (
     <div className="h-14 border-b bg-white flex items-center justify-center px-4 gap-2 shadow-sm no-print">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant={tool === 'select' ? 'default' : 'ghost'}
-            size="icon"
-            onClick={() => setTool('select')}
-            className="h-9 w-9"
-          >
-            <MousePointer2 className="h-5 w-5" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>Seleção</TooltipContent>
-      </Tooltip>
-
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant={tool === 'line' ? 'default' : 'ghost'}
-            size="icon"
-            onClick={() => setTool('line')}
-            className="h-9 w-9"
-          >
-            <Minus className="h-5 w-5 rotate-45" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>Linha</TooltipContent>
-      </Tooltip>
-
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant={tool === 'rectangle' ? 'default' : 'ghost'}
-            size="icon"
-            onClick={() => setTool('rectangle')}
-            className="h-9 w-9"
-          >
-            <Square className="h-5 w-5" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>Retângulo por Medida</TooltipContent>
-      </Tooltip>
-
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant={tool === 'pan' ? 'default' : 'ghost'}
-            size="icon"
-            onClick={() => setTool('pan')}
-            className="h-9 w-9"
-          >
-            <Move className="h-5 w-5" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>Pan</TooltipContent>
-      </Tooltip>
+      {tools.map((t) => (
+        <Tooltip key={t.id}>
+          <TooltipTrigger asChild>
+            <Button
+              variant={tool === t.id ? 'default' : 'ghost'}
+              size="icon"
+              onClick={t.onClick}
+              className="h-9 w-9"
+            >
+              <t.icon className={cn('h-5 w-5', t.className)} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t.label}</TooltipContent>
+        </Tooltip>
+      ))}
     </div>
   )
 }

@@ -10,7 +10,6 @@ import {
   ZoomOut,
   Save,
   FolderOpen,
-  ImageDown,
   Grid3X3,
   Trash2,
   ArrowUpRight,
@@ -114,8 +113,6 @@ export const Sidebar: React.FC = () => {
   }
 
   const handleExportPDF = () => {
-    // Since we cannot use external libraries like jspdf, we use the browser's print functionality
-    // which allows saving as PDF. We style the page to only show the canvas.
     window.print()
     toast.info('Selecione "Salvar como PDF" na janela de impressão.')
   }
@@ -150,7 +147,7 @@ export const Sidebar: React.FC = () => {
 
         {tool === 'rectangle' && (
           <div className="space-y-4 animate-accordion-down">
-            <h3 className="text-sm font-medium">Criar Retângulo</h3>
+            <h3 className="text-sm font-medium">Retângulo por Medida</h3>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label htmlFor="width">Largura (m)</Label>
