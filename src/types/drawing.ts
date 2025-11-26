@@ -5,6 +5,16 @@ export type Point = {
 
 export type ShapeType = 'line' | 'rectangle' | 'polygon' | 'arrow'
 
+export interface SlabConfig {
+  type: 'H8' | 'H12' | 'H16' | 'H20' | 'H25' | 'H30'
+  material: 'ceramic' | 'eps'
+  unitHeight: number // cm
+  unitWidth: number // cm
+  unitLength: number // cm
+  beamWidth: number // cm
+  interEixo: number // cm (calculated)
+}
+
 export interface Shape {
   id: string
   type: ShapeType
@@ -18,6 +28,7 @@ export interface Shape {
     angle?: number
     isJoist?: boolean
     label?: string
+    slabConfig?: SlabConfig
   }
 }
 

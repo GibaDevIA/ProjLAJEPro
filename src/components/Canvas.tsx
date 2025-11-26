@@ -660,14 +660,35 @@ export const Canvas: React.FC = () => {
 
               {renderGrid()}
 
-              {shapes.map((shape) => (
-                <ShapeRenderer
-                  key={shape.id}
-                  shape={shape}
-                  view={view}
-                  isSelected={activeShapeId === shape.id}
-                />
-              ))}
+              {shapes.map((shape) => {
+                // Find if there is an arrow inside this shape (if it's a slab)
+                let joistArrow: Shape | undefined
+                if (shape.type === 'rectangle' || shape.type === 'polygon') {
+                  joistArrow = shapes.find(
+                    (s) =>
+                      s.type === 'arrow' &&
+                      s.properties?.isJoist &&
+                      isPointInShape(
+                        {
+                          x: (s.points[0].x + s.points[1].x) / 2,
+                          y: (s.points[0].y + s.points[1].y) / 2,
+                        },
+                        shape,
+                        view,
+                      ),
+                  )
+                }
+
+                return (
+                  <ShapeRenderer
+                    key={shape.id}
+                    shape={shape}
+                    view={view}
+                    isSelected={activeShapeId === shape.id}
+                    joistArrow={joistArrow}
+                  />
+                )
+              })}
 
               {renderPreview()}
 

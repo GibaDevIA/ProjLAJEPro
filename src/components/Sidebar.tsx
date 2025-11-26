@@ -15,10 +15,12 @@ import {
   ArrowUpRight,
   FileText,
   FileImage,
+  Settings2,
 } from 'lucide-react'
 import { generateId } from '@/lib/utils'
-import { Shape } from '@/types/drawing'
+import { Shape, SlabConfig } from '@/types/drawing'
 import { toast } from 'sonner'
+import { SlabConfigurationModal } from './SlabConfigurationModal'
 
 export const Sidebar: React.FC = () => {
   const {
@@ -34,21 +36,16 @@ export const Sidebar: React.FC = () => {
     setShapes,
   } = useDrawing()
 
-  const [rectWidth, setRectWidth] = useState('5')
-  const [rectHeight, setRectHeight] = useState('4')
+  const [isSlabModalOpen, setIsSlabModalOpen] = useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-  const handleCreateRect = () => {
-    const w = parseFloat(rectWidth)
-    const h = parseFloat(rectHeight)
-
-    if (isNaN(w) || isNaN(h) || w <= 0 || h <= 0) {
-      toast.error('Por favor, insira dimensões válidas.')
-      return
-    }
-
-    const halfW = w / 2
-    const halfH = h / 2
+  const handleCreateSlab = (
+    config: SlabConfig,
+    width: number,
+    length: number,
+  ) => {
+    const halfW = width / 2
+    const halfH = length / 2
 
     const newShape: Shape = {
       id: generateId(),
@@ -59,7 +56,11 @@ export const Sidebar: React.FC = () => {
         { x: halfW, y: halfH },
         { x: -halfW, y: halfH },
       ],
-      properties: { width: w, height: h },
+      properties: {
+        width: width,
+        height: length,
+        slabConfig: config,
+      },
     }
 
     addShape(newShape)
@@ -147,29 +148,13 @@ export const Sidebar: React.FC = () => {
 
         {tool === 'rectangle' && (
           <div className="space-y-4 animate-accordion-down">
-            <h3 className="text-sm font-medium">Lançar Laje (Retângulo)</h3>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label htmlFor="width">Largura (m)</Label>
-                <Input
-                  id="width"
-                  type="number"
-                  value={rectWidth}
-                  onChange={(e) => setRectWidth(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="height">Comp. (m)</Label>
-                <Input
-                  id="height"
-                  type="number"
-                  value={rectHeight}
-                  onChange={(e) => setRectHeight(e.target.value)}
-                />
-              </div>
-            </div>
-            <Button className="w-full" onClick={handleCreateRect}>
-              Criar Laje
+            <h3 className="text-sm font-medium">Lançar Laje</h3>
+            <p className="text-xs text-muted-foreground">
+              Configure os parâmetros da laje e dimensões.
+            </p>
+            <Button className="w-full" onClick={() => setIsSlabModalOpen(true)}>
+              <Settings2 className="mr-2 h-4 w-4" />
+              Configurar e Criar
             </Button>
           </div>
         )}
@@ -268,6 +253,12 @@ export const Sidebar: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <SlabConfigurationModal
+        open={isSlabModalOpen}
+        onOpenChange={setIsSlabModalOpen}
+        onConfirm={handleCreateSlab}
+      />
     </ScrollArea>
   )
 }

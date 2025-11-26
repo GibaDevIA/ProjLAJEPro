@@ -2,10 +2,15 @@ import React from 'react'
 import { useDrawing } from '@/context/DrawingContext'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
-import { calculatePolygonArea, calculateBoundingBox } from '@/lib/geometry'
+import {
+  calculatePolygonArea,
+  calculateBoundingBox,
+  isPointInShape,
+  getProjectedLength,
+} from '@/lib/geometry'
 
 export const MaterialsPanel: React.FC = () => {
-  const { shapes } = useDrawing()
+  const { shapes, view } = useDrawing()
 
   // Filter for slabs (rectangles and polygons)
   const slabs = shapes.filter(
@@ -41,6 +46,36 @@ export const MaterialsPanel: React.FC = () => {
               height = bbox.height
             }
 
+            // Find associated joist arrow
+            const joistArrow = shapes.find(
+              (s) =>
+                s.type === 'arrow' &&
+                s.properties?.isJoist &&
+                isPointInShape(
+                  {
+                    x: (s.points[0].x + s.points[1].x) / 2,
+                    y: (s.points[0].y + s.points[1].y) / 2,
+                  },
+                  slab,
+                  view,
+                ),
+            )
+
+            let beamCount = 0
+            if (joistArrow && slab.properties?.slabConfig) {
+              const interEixoMeters = slab.properties.slabConfig.interEixo / 100
+              // Calculate length perpendicular to beam direction
+              const arrowVec = {
+                x: joistArrow.points[1].x - joistArrow.points[0].x,
+                y: joistArrow.points[1].y - joistArrow.points[0].y,
+              }
+              // Perpendicular vector
+              const perpVec = { x: -arrowVec.y, y: arrowVec.x }
+
+              const projectedLen = getProjectedLength(slab.points, perpVec)
+              beamCount = Math.ceil(projectedLen / interEixoMeters)
+            }
+
             return (
               <div key={slab.id} className="text-sm">
                 <div className="font-medium flex items-center justify-between">
@@ -53,6 +88,26 @@ export const MaterialsPanel: React.FC = () => {
                   {width.toFixed(2)}m x {height.toFixed(2)}m ({area.toFixed(2)}
                   m²)
                 </div>
+                {slab.properties?.slabConfig && (
+                  <div className="mt-2 text-xs text-muted-foreground space-y-1 bg-gray-50 p-2 rounded">
+                    <div>Tipo: {slab.properties.slabConfig.type}</div>
+                    <div>
+                      Material:{' '}
+                      {slab.properties.slabConfig.material === 'ceramic'
+                        ? 'Cerâmica'
+                        : 'EPS'}
+                    </div>
+                    {beamCount > 0 ? (
+                      <div className="font-semibold text-primary">
+                        {beamCount} Vigotas
+                      </div>
+                    ) : (
+                      <div className="text-amber-600">
+                        Defina a direção (Vigota)
+                      </div>
+                    )}
+                  </div>
+                )}
                 <Separator className="my-2" />
               </div>
             )

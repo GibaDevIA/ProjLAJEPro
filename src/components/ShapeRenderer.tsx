@@ -1,20 +1,39 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Shape, ViewState } from '@/types/drawing'
 import {
   worldToScreen,
   calculatePolygonArea,
   calculateLineLength,
+  generateBeamLines,
 } from '@/lib/geometry'
 
 interface ShapeRendererProps {
   shape: Shape
   view: ViewState
   isSelected: boolean
+  joistArrow?: Shape
 }
 
 export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
-  ({ shape, view, isSelected }) => {
+  ({ shape, view, isSelected, joistArrow }) => {
     const screenPoints = shape.points.map((p) => worldToScreen(p, view))
+
+    const beamLines = useMemo(() => {
+      if (
+        (shape.type === 'rectangle' || shape.type === 'polygon') &&
+        joistArrow &&
+        shape.properties?.slabConfig
+      ) {
+        const interEixoMeters = shape.properties.slabConfig.interEixo / 100
+        return generateBeamLines(
+          shape.points,
+          joistArrow.points[0],
+          joistArrow.points[1],
+          interEixoMeters,
+        )
+      }
+      return []
+    }, [shape, joistArrow])
 
     if (shape.type === 'arrow') {
       const p1 = screenPoints[0]
@@ -173,6 +192,25 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
             strokeLinejoin="round"
             className="transition-colors duration-150"
           />
+
+          {/* Render Beams */}
+          {beamLines.map((line, i) => {
+            const p1 = worldToScreen(line[0], view)
+            const p2 = worldToScreen(line[1], view)
+            return (
+              <line
+                key={`beam-${i}`}
+                x1={p1.x}
+                y1={p1.y}
+                x2={p2.x}
+                y2={p2.y}
+                stroke="#6b7280"
+                strokeWidth={1}
+                strokeOpacity={0.6}
+              />
+            )
+          })}
+
           {screenPoints.map((p, i) => (
             <circle key={i} cx={p.x} cy={p.y} r={4} fill="#343a40" />
           ))}

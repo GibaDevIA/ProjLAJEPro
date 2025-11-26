@@ -260,3 +260,137 @@ export function calculateBoundingBox(points: Point[]): {
   }
   return { width: maxX - minX, height: maxY - minY }
 }
+
+// --- Beam Generation Helpers ---
+
+// Project polygon points onto a vector
+export function getProjectedLength(points: Point[], vector: Point): number {
+  // Normalize vector
+  const len = Math.sqrt(vector.x * vector.x + vector.y * vector.y)
+  if (len === 0) return 0
+  const nx = vector.x / len
+  const ny = vector.y / len
+
+  let minProj = Infinity
+  let maxProj = -Infinity
+
+  for (const p of points) {
+    const proj = p.x * nx + p.y * ny
+    if (proj < minProj) minProj = proj
+    if (proj > maxProj) maxProj = proj
+  }
+
+  return maxProj - minProj
+}
+
+// Generate beam lines inside a polygon
+export function generateBeamLines(
+  polygonPoints: Point[],
+  arrowStart: Point,
+  arrowEnd: Point,
+  spacing: number, // in meters
+): Point[][] {
+  if (spacing <= 0) return []
+
+  // Direction of the arrow (beams are perpendicular to this)
+  const dx = arrowEnd.x - arrowStart.x
+  const dy = arrowEnd.y - arrowStart.y
+  const len = Math.sqrt(dx * dx + dy * dy)
+  if (len === 0) return []
+
+  // Normalized arrow direction
+  const ax = dx / len
+  const ay = dy / len
+
+  // Beam direction (perpendicular to arrow)
+  // Rotate 90 degrees: (-y, x)
+  const bx = -ay
+  const by = ax
+
+  // We need to cover the polygon with lines parallel to (bx, by).
+  // To do this, we project the polygon onto the Arrow Direction (ax, ay).
+  // We find min and max projection values.
+  let minProj = Infinity
+  let maxProj = -Infinity
+
+  for (const p of polygonPoints) {
+    const proj = p.x * ax + p.y * ay
+    if (proj < minProj) minProj = proj
+    if (proj > maxProj) maxProj = proj
+  }
+
+  // Generate lines starting from minProj to maxProj with spacing
+  // We center the beams or start from one side? Usually start from one side or center.
+  // Let's start from minProj + spacing/2 to center them roughly or just minProj.
+  // Let's start from minProj.
+  const lines: Point[][] = []
+
+  // Extend the range slightly to ensure coverage
+  const start = minProj
+  const end = maxProj
+
+  for (let d = start + spacing / 2; d <= end; d += spacing) {
+    // A point on this line is: d * (ax, ay) (relative to origin 0,0 if we projected simply)
+    // Actually, the line equation is: P dot A = d
+    // Where A is the normal to the beam line (which is the arrow direction).
+    // So the line is perpendicular to A at distance d from origin along A.
+
+    // We need to find the segment of this line inside the polygon.
+    // We can define the line as L(t) = (d*ax, d*ay) + t * (bx, by)
+    // We need to find t values where this line intersects polygon edges.
+
+    const origin = { x: d * ax, y: d * ay }
+    const intersections: number[] = []
+
+    for (let i = 0; i < polygonPoints.length; i++) {
+      const p1 = polygonPoints[i]
+      const p2 = polygonPoints[(i + 1) % polygonPoints.length]
+
+      // Intersect line L(t) with segment p1-p2
+      // Segment: S(u) = p1 + u * (p2 - p1), 0 <= u <= 1
+      // L(t) = origin + t * beamDir
+      // origin + t*B = p1 + u*S
+      // t*B - u*S = p1 - origin
+      // Solve for t and u.
+      // Vector cross product approach is easier for 2D.
+      // p + t r = q + u s
+      // (p - q) x s = t (s x r) -> t = (q - p) x s / (r x s)
+      // (q - p) x r = u (r x s) -> u = (q - p) x r / (r x s)
+
+      const sx = p2.x - p1.x
+      const sy = p2.y - p1.y
+      // r is beamDir (bx, by)
+      // s is segment vector (sx, sy)
+      // q is p1
+      // p is origin
+
+      const rxs = bx * sy - by * sx
+      if (Math.abs(rxs) < 1e-9) continue // Parallel
+
+      const qpx = p1.x - origin.x
+      const qpy = p1.y - origin.y
+
+      const t = (qpx * sy - qpy * sx) / rxs
+      const u = (qpx * by - qpy * bx) / rxs
+
+      if (u >= 0 && u <= 1) {
+        intersections.push(t)
+      }
+    }
+
+    intersections.sort((a, b) => a - b)
+
+    // Create segments from pairs of intersections
+    for (let i = 0; i < intersections.length; i += 2) {
+      if (i + 1 < intersections.length) {
+        const t1 = intersections[i]
+        const t2 = intersections[i + 1]
+        const segStart = { x: origin.x + t1 * bx, y: origin.y + t1 * by }
+        const segEnd = { x: origin.x + t2 * bx, y: origin.y + t2 * by }
+        lines.push([segStart, segEnd])
+      }
+    }
+  }
+
+  return lines
+}
