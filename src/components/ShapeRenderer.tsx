@@ -16,6 +16,25 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
   ({ shape, view, isSelected }) => {
     const screenPoints = shape.points.map((p) => worldToScreen(p, view))
 
+    if (shape.type === 'arrow') {
+      const p1 = screenPoints[0]
+      const p2 = screenPoints[1]
+      return (
+        <g className="group">
+          <line
+            x1={p1.x}
+            y1={p1.y}
+            x2={p2.x}
+            y2={p2.y}
+            stroke={isSelected ? '#007bff' : '#ef4444'}
+            strokeWidth={isSelected ? 3 : 2}
+            markerEnd="url(#arrowhead)"
+            className="transition-colors duration-150"
+          />
+        </g>
+      )
+    }
+
     if (shape.type === 'line') {
       const p1 = screenPoints[0]
       const p2 = screenPoints[1]
@@ -74,6 +93,51 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
       centroid.x /= screenPoints.length
       centroid.y /= screenPoints.length
 
+      // Calculate dimensions for rectangle
+      let dimensions = null
+      if (
+        shape.type === 'rectangle' &&
+        shape.properties?.width &&
+        shape.properties?.height
+      ) {
+        // Assuming points are ordered: top-left, top-right, bottom-right, bottom-left
+        // Top edge center
+        const topMid = {
+          x: (screenPoints[0].x + screenPoints[1].x) / 2,
+          y: (screenPoints[0].y + screenPoints[1].y) / 2 - 15,
+        }
+        // Right edge center
+        const rightMid = {
+          x: (screenPoints[1].x + screenPoints[2].x) / 2 + 25,
+          y: (screenPoints[1].y + screenPoints[2].y) / 2,
+        }
+
+        dimensions = (
+          <>
+            <text
+              x={topMid.x}
+              y={topMid.y}
+              textAnchor="middle"
+              className="text-[10px] font-bold pointer-events-none select-none"
+              fill="#1f2937"
+              style={{ fontSize: '10px', fontFamily: 'Inter' }}
+            >
+              {shape.properties.width.toFixed(1)}m
+            </text>
+            <text
+              x={rightMid.x}
+              y={rightMid.y}
+              textAnchor="middle"
+              className="text-[10px] font-bold pointer-events-none select-none"
+              fill="#1f2937"
+              style={{ fontSize: '10px', fontFamily: 'Inter' }}
+            >
+              {shape.properties.height.toFixed(1)}m
+            </text>
+          </>
+        )
+      }
+
       return (
         <g className="group">
           <path
@@ -110,6 +174,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
               {area.toFixed(2)} m²
             </text>
           </g>
+          {dimensions}
         </g>
       )
     }

@@ -34,7 +34,7 @@ function distanceToSegment(p: Point, v: Point, w: Point): number {
 }
 
 // Check if point is inside polygon using ray casting
-function isPointInPolygon(p: Point, vertices: Point[]): boolean {
+export function isPointInPolygon(p: Point, vertices: Point[]): boolean {
   let inside = false
   for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
     const xi = vertices[i].x,
@@ -58,7 +58,7 @@ export function isPointInShape(
   const screenPoints = shape.points.map((p) => worldToScreen(p, view))
   const tolerance = 5 // pixels
 
-  if (shape.type === 'line') {
+  if (shape.type === 'line' || shape.type === 'arrow') {
     // Check distance to each segment
     for (let i = 0; i < screenPoints.length - 1; i++) {
       if (

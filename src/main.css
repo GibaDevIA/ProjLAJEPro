@@ -134,4 +134,23 @@
   .animate-scale-up {
     animation: scale-up 0.2s ease-out;
   }
+
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+    body {
+      background: white;
+    }
+    /* Ensure canvas is visible and centered */
+    #canvas-container {
+      width: 100% !important;
+      height: 100% !important;
+      position: absolute;
+      top: 0;
+      left: 0;
+      margin: 0;
+      padding: 0;
+    }
+  }
 }

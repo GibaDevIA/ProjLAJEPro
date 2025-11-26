@@ -8,6 +8,7 @@ import {
   calculateAngle,
   getPointFromLengthAndAngle,
   isPointInShape,
+  isPointInPolygon,
 } from '@/lib/geometry'
 import { Point, Shape } from '@/types/drawing'
 import { ShapeRenderer } from './ShapeRenderer'
@@ -19,6 +20,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
+import { toast } from 'sonner'
 
 export const Canvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -218,6 +220,27 @@ export const Canvas: React.FC = () => {
             addShape(newShape)
           }
         }
+      } else if (tool === 'slab_joist') {
+        // Check if inside a polygon or rectangle
+        const polygons = shapes.filter(
+          (s) => s.type === 'polygon' || s.type === 'rectangle',
+        )
+        let insideShape = false
+        for (const poly of polygons) {
+          const screenPoints = poly.points.map((p) => worldToScreen(p, view))
+          if (isPointInPolygon(mousePos, screenPoints)) {
+            insideShape = true
+            break
+          }
+        }
+
+        if (insideShape) {
+          setDrawingStart(worldPos)
+        } else {
+          toast.error(
+            'Clique dentro de uma laje (polígono fechado) para lançar a vigota.',
+          )
+        }
       }
     }
   }
@@ -331,6 +354,23 @@ export const Canvas: React.FC = () => {
     if (isMovingShape) {
       // Check if we formed a polygon by connecting lines
       checkAndMergeLines()
+    }
+
+    if (tool === 'slab_joist' && drawingStart && currentMousePos) {
+      const endWorld = screenToWorld(currentMousePos, view)
+      const length = calculateLineLength(drawingStart, endWorld)
+
+      if (length > 0.1) {
+        // Minimum length check
+        const newShape: Shape = {
+          id: generateId(),
+          type: 'arrow',
+          points: [drawingStart, endWorld],
+          properties: { isJoist: true },
+        }
+        addShape(newShape)
+      }
+      setDrawingStart(null)
     }
 
     setIsMovingShape(false)
@@ -499,13 +539,33 @@ export const Canvas: React.FC = () => {
         </g>
       )
     }
+    if (tool === 'slab_joist' && drawingStart && currentMousePos) {
+      const startScreen = worldToScreen(drawingStart, view)
+      const endScreen = currentMousePos
+      return (
+        <g>
+          <line
+            x1={startScreen.x}
+            y1={startScreen.y}
+            x2={endScreen.x}
+            y2={endScreen.y}
+            stroke="#ef4444"
+            strokeWidth={2}
+            markerEnd="url(#arrowhead-preview)"
+          />
+        </g>
+      )
+    }
     return null
   }
 
   return (
     <ContextMenu>
       <ContextMenuTrigger className="w-full h-full block">
-        <div className="relative w-full h-full overflow-hidden bg-white select-none touch-none">
+        <div
+          id="canvas-container"
+          className="relative w-full h-full overflow-hidden bg-white select-none touch-none"
+        >
           <div
             ref={containerRef}
             className={cn('w-full h-full cursor-crosshair', {
@@ -542,6 +602,29 @@ export const Canvas: React.FC = () => {
               height="100%"
               className="absolute inset-0 pointer-events-none"
             >
+              <defs>
+                <marker
+                  id="arrowhead"
+                  markerWidth="10"
+                  markerHeight="7"
+                  refX="9"
+                  refY="3.5"
+                  orient="auto"
+                >
+                  <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444" />
+                </marker>
+                <marker
+                  id="arrowhead-preview"
+                  markerWidth="10"
+                  markerHeight="7"
+                  refX="9"
+                  refY="3.5"
+                  orient="auto"
+                >
+                  <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444" />
+                </marker>
+              </defs>
+
               {renderGrid()}
 
               {shapes.map((shape) => (
@@ -593,7 +676,7 @@ export const Canvas: React.FC = () => {
             />
           )}
 
-          <div className="absolute bottom-4 right-4 bg-white/90 p-2 rounded shadow text-xs font-mono pointer-events-none">
+          <div className="absolute bottom-4 right-4 bg-white/90 p-2 rounded shadow text-xs font-mono pointer-events-none no-print">
             Scale: 1m = {view.scale.toFixed(0)}px
           </div>
         </div>
@@ -603,7 +686,7 @@ export const Canvas: React.FC = () => {
           disabled={!activeShapeId}
           onClick={() => activeShapeId && removeShape(activeShapeId)}
         >
-          Excluir Linha
+          Excluir Elemento
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

@@ -3,7 +3,7 @@ export type Point = {
   y: number
 }
 
-export type ShapeType = 'line' | 'rectangle' | 'polygon'
+export type ShapeType = 'line' | 'rectangle' | 'polygon' | 'arrow'
 
 export interface Shape {
   id: string
@@ -16,6 +16,7 @@ export interface Shape {
     area?: number
     length?: number
     angle?: number
+    isJoist?: boolean
   }
 }
 
@@ -24,7 +25,7 @@ export interface ViewState {
   offset: Point // in pixels
 }
 
-export type ToolType = 'select' | 'line' | 'rectangle' | 'pan'
+export type ToolType = 'select' | 'line' | 'rectangle' | 'pan' | 'slab_joist'
 
 export interface SnapResult {
   point: Point

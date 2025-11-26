@@ -6,10 +6,6 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
-  MousePointer2,
-  Minus,
-  Square,
-  Move,
   ZoomIn,
   ZoomOut,
   Save,
@@ -17,9 +13,13 @@ import {
   ImageDown,
   Grid3X3,
   Trash2,
+  ArrowUpRight,
+  FileText,
+  FileImage,
 } from 'lucide-react'
 import { generateId } from '@/lib/utils'
 import { Shape } from '@/types/drawing'
+import { toast } from 'sonner'
 
 export const Sidebar: React.FC = () => {
   const {
@@ -44,7 +44,7 @@ export const Sidebar: React.FC = () => {
     const h = parseFloat(rectHeight)
 
     if (isNaN(w) || isNaN(h) || w <= 0 || h <= 0) {
-      alert('Por favor, insira dimensões válidas.')
+      toast.error('Por favor, insira dimensões válidas.')
       return
     }
 
@@ -72,6 +72,7 @@ export const Sidebar: React.FC = () => {
         y: window.innerHeight / 2,
       },
     }))
+    toast.success('Retângulo criado com sucesso!')
   }
 
   const handleZoom = (delta: number) => {
@@ -81,7 +82,7 @@ export const Sidebar: React.FC = () => {
     }))
   }
 
-  const handleExportPNG = () => {
+  const handleExportJPG = () => {
     const svg = document.querySelector('svg')
     if (!svg) return
 
@@ -100,63 +101,48 @@ export const Sidebar: React.FC = () => {
         ctx.fillStyle = 'white'
         ctx.fillRect(0, 0, canvas.width, canvas.height)
         ctx.drawImage(img, 0, 0)
-        const pngUrl = canvas.toDataURL('image/png')
+        const jpgUrl = canvas.toDataURL('image/jpeg', 0.9)
         const a = document.createElement('a')
-        a.href = pngUrl
-        a.download = 'planta.png'
+        a.href = jpgUrl
+        a.download = 'planta.jpg'
         a.click()
+        toast.success('Imagem JPG exportada!')
       }
       URL.revokeObjectURL(url)
     }
     img.src = url
   }
 
+  const handleExportPDF = () => {
+    // Since we cannot use external libraries like jspdf, we use the browser's print functionality
+    // which allows saving as PDF. We style the page to only show the canvas.
+    window.print()
+    toast.info('Selecione "Salvar como PDF" na janela de impressão.')
+  }
+
   const handleClearAll = () => {
     if (confirm('Tem certeza que deseja apagar tudo?')) {
       setShapes([])
+      toast.success('Desenho limpo.')
     }
   }
 
   return (
-    <ScrollArea className="h-full w-full bg-white border-r border-border">
+    <ScrollArea className="h-full w-full bg-white border-r border-border no-print">
       <div className="p-4 space-y-6">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold tracking-tight">Ferramentas</h2>
-          <p className="text-sm text-muted-foreground">Desenho e Edição</p>
+          <p className="text-sm text-muted-foreground">Opções Adicionais</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2">
           <Button
-            variant={tool === 'select' ? 'default' : 'outline'}
+            variant={tool === 'slab_joist' ? 'default' : 'outline'}
             className="justify-start"
-            onClick={() => setTool('select')}
+            onClick={() => setTool('slab_joist')}
           >
-            <MousePointer2 className="mr-2 h-4 w-4" />
-            Seleção
-          </Button>
-          <Button
-            variant={tool === 'pan' ? 'default' : 'outline'}
-            className="justify-start"
-            onClick={() => setTool('pan')}
-          >
-            <Move className="mr-2 h-4 w-4" />
-            Pan
-          </Button>
-          <Button
-            variant={tool === 'line' ? 'default' : 'outline'}
-            className="justify-start"
-            onClick={() => setTool('line')}
-          >
-            <Minus className="mr-2 h-4 w-4 rotate-45" />
-            Linha
-          </Button>
-          <Button
-            variant={tool === 'rectangle' ? 'default' : 'outline'}
-            className="justify-start"
-            onClick={() => setTool('rectangle')}
-          >
-            <Square className="mr-2 h-4 w-4" />
-            Retângulo
+            <ArrowUpRight className="mr-2 h-4 w-4" />
+            Lançar Laje
           </Button>
         </div>
 
@@ -261,10 +247,18 @@ export const Sidebar: React.FC = () => {
             <Button
               variant="outline"
               className="justify-start"
-              onClick={handleExportPNG}
+              onClick={handleExportJPG}
             >
-              <ImageDown className="mr-2 h-4 w-4" />
-              Exportar PNG
+              <FileImage className="mr-2 h-4 w-4" />
+              Exportar JPG
+            </Button>
+            <Button
+              variant="outline"
+              className="justify-start"
+              onClick={handleExportPDF}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Exportar PDF
             </Button>
             <Button
               variant="destructive"
