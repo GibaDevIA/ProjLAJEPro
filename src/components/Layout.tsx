@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from '@/components/Sidebar'
 import { TopBar } from '@/components/TopBar'
+import { MaterialsPanel } from '@/components/MaterialsPanel'
 import { Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
@@ -46,6 +47,11 @@ export default function Layout() {
           <main className="flex-1 h-full relative pt-14 lg:pt-0">
             <Outlet />
           </main>
+
+          {/* Right Sidebar - Materials Panel */}
+          <aside className="hidden lg:block w-[300px] h-full border-l z-10 bg-white">
+            <MaterialsPanel />
+          </aside>
         </div>
       </div>
     </DrawingProvider>

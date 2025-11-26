@@ -241,3 +241,22 @@ export function findClosedCycle(
 
   return null
 }
+
+export function calculateBoundingBox(points: Point[]): {
+  width: number
+  height: number
+} {
+  if (points.length === 0) return { width: 0, height: 0 }
+  let minX = points[0].x
+  let maxX = points[0].x
+  let minY = points[0].y
+  let maxY = points[0].y
+
+  for (const p of points) {
+    if (p.x < minX) minX = p.x
+    if (p.x > maxX) maxX = p.x
+    if (p.y < minY) minY = p.y
+    if (p.y > maxY) maxY = p.y
+  }
+  return { width: maxX - minX, height: maxY - minY }
+}

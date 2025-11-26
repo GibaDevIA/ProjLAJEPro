@@ -30,7 +30,7 @@ export const TopBar: React.FC = () => {
     {
       id: 'rectangle',
       icon: Square,
-      label: 'Retângulo por Medida',
+      label: 'Lançar Laje',
       onClick: () => setTool('rectangle'),
       className: '',
     },

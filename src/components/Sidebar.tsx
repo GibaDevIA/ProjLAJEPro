@@ -71,7 +71,7 @@ export const Sidebar: React.FC = () => {
         y: window.innerHeight / 2,
       },
     }))
-    toast.success('Retângulo criado com sucesso!')
+    toast.success('Laje criada com sucesso!')
   }
 
   const handleZoom = (delta: number) => {
@@ -139,7 +139,7 @@ export const Sidebar: React.FC = () => {
             onClick={() => setTool('slab_joist')}
           >
             <ArrowUpRight className="mr-2 h-4 w-4" />
-            Lançar Laje
+            Lançar Vigota
           </Button>
         </div>
 
@@ -147,7 +147,7 @@ export const Sidebar: React.FC = () => {
 
         {tool === 'rectangle' && (
           <div className="space-y-4 animate-accordion-down">
-            <h3 className="text-sm font-medium">Retângulo por Medida</h3>
+            <h3 className="text-sm font-medium">Lançar Laje (Retângulo)</h3>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label htmlFor="width">Largura (m)</Label>
@@ -169,7 +169,7 @@ export const Sidebar: React.FC = () => {
               </div>
             </div>
             <Button className="w-full" onClick={handleCreateRect}>
-              Criar Retângulo
+              Criar Laje
             </Button>
           </div>
         )}
