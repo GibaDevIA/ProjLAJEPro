@@ -1,0 +1,19 @@
+/* Typescript config for the project: https://www.typescriptlang.org/tsconfig/ */
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "noImplicitAny": false,
+    "noUnusedParameters": false,
+    "allowJs": true,
+    "strictNullChecks": true,
+    "skipLibCheck": true
+  }
+}

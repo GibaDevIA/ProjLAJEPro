@@ -1,0 +1,4 @@
+onlyBuiltDependencies:
+  - '@swc/core'
+  - esbuild
+virtualStoreDir: ${PODS_MANAGER_ROOT:-/app}/pods/${PROJECT_ID:-project}/node_modules/.pnpm

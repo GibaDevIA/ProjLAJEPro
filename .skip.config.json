@@ -1,0 +1,42 @@
+{
+  "name": "frontend-react-vite-ts-shadcn",
+  "entrypoint": "src/main.tsx",
+  "routes": {
+    "file": "src/App.tsx",
+    "format": "jsx"
+  },
+  "config": {
+    "showBadge": true
+  },
+  "preventAI": [
+    "**/*.{png,jpg,jpeg,gif,svg,ico,webp}",
+    "**/*.d.ts",
+    ".skip.config.json",
+    ".env*",
+    "tests/**/*",
+    "public/**/*",
+    "src/main.tsx",
+    "src/pages/NotFound.tsx",
+    "src/hooks/**/*",
+    "src/components/ui/**/*",
+    "src/vite-env.d.ts",
+    ".gitignore",
+    ".prettierignore",
+    ".prettierrc",
+    ".npmrc",
+    "bun.lockb",
+    "components.json",
+    ".oxlintrc.json",
+    "index.html",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "package.json",
+    "postcss.config.js",
+    "README.md",
+    "tsconfig.app.json",
+    "tsconfig.json",
+    "tsconfig.node.json",
+    "vite.config.ts"
+  ]
+}

@@ -1,0 +1,17 @@
+# Ignore artifacts:
+dist
+build
+coverage
+.prettierrc
+.skip.config.json
+components.json
+eslint.config.js
+index.html
+package.json
+pnpm-lock.yaml
+pnpm-workspace.yaml
+postcss.config.js
+README.md
+tests/
+tsconfig.*
+vite.config.ts
