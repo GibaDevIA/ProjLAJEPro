@@ -79,7 +79,7 @@ export const MaterialsPanel: React.FC = () => {
             return (
               <div key={slab.id} className="text-sm">
                 <div className="font-medium flex items-center justify-between">
-                  <span>Laje {index + 1}</span>
+                  <span>{slab.properties?.label || `Laje ${index + 1}`}</span>
                   <span className="text-xs text-muted-foreground uppercase">
                     {slab.type === 'rectangle' ? 'Retangular' : 'Poligonal'}
                   </span>

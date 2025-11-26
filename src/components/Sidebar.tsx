@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { useDrawing } from '@/context/DrawingContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,18 +15,14 @@ import {
   ArrowUpRight,
   FileText,
   FileImage,
-  Settings2,
+  Square,
 } from 'lucide-react'
-import { generateId } from '@/lib/utils'
-import { Shape, SlabConfig } from '@/types/drawing'
 import { toast } from 'sonner'
-import { SlabConfigurationModal } from './SlabConfigurationModal'
 
 export const Sidebar: React.FC = () => {
   const {
     tool,
     setTool,
-    addShape,
     view,
     setView,
     gridVisible,
@@ -36,44 +32,7 @@ export const Sidebar: React.FC = () => {
     setShapes,
   } = useDrawing()
 
-  const [isSlabModalOpen, setIsSlabModalOpen] = useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
-
-  const handleCreateSlab = (
-    config: SlabConfig,
-    width: number,
-    length: number,
-  ) => {
-    const halfW = width / 2
-    const halfH = length / 2
-
-    const newShape: Shape = {
-      id: generateId(),
-      type: 'rectangle',
-      points: [
-        { x: -halfW, y: -halfH },
-        { x: halfW, y: -halfH },
-        { x: halfW, y: halfH },
-        { x: -halfW, y: halfH },
-      ],
-      properties: {
-        width: width,
-        height: length,
-        slabConfig: config,
-      },
-    }
-
-    addShape(newShape)
-
-    setView((prev) => ({
-      ...prev,
-      offset: {
-        x: window.innerWidth / 2,
-        y: window.innerHeight / 2,
-      },
-    }))
-    toast.success('Laje criada com sucesso!')
-  }
 
   const handleZoom = (delta: number) => {
     setView((prev) => ({
@@ -135,6 +94,14 @@ export const Sidebar: React.FC = () => {
 
         <div className="grid grid-cols-1 gap-2">
           <Button
+            variant={tool === 'rectangle' ? 'default' : 'outline'}
+            className="justify-start"
+            onClick={() => setTool('rectangle')}
+          >
+            <Square className="mr-2 h-4 w-4" />
+            Lançar Laje
+          </Button>
+          <Button
             variant={tool === 'slab_joist' ? 'default' : 'outline'}
             className="justify-start"
             onClick={() => setTool('slab_joist')}
@@ -145,19 +112,6 @@ export const Sidebar: React.FC = () => {
         </div>
 
         <Separator />
-
-        {tool === 'rectangle' && (
-          <div className="space-y-4 animate-accordion-down">
-            <h3 className="text-sm font-medium">Lançar Laje</h3>
-            <p className="text-xs text-muted-foreground">
-              Configure os parâmetros da laje e dimensões.
-            </p>
-            <Button className="w-full" onClick={() => setIsSlabModalOpen(true)}>
-              <Settings2 className="mr-2 h-4 w-4" />
-              Configurar e Criar
-            </Button>
-          </div>
-        )}
 
         <div className="space-y-4">
           <h3 className="text-sm font-medium">Visualização</h3>
@@ -253,12 +207,6 @@ export const Sidebar: React.FC = () => {
           </div>
         </div>
       </div>
-
-      <SlabConfigurationModal
-        open={isSlabModalOpen}
-        onOpenChange={setIsSlabModalOpen}
-        onConfirm={handleCreateSlab}
-      />
     </ScrollArea>
   )
 }

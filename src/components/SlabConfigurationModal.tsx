@@ -22,13 +22,15 @@ import { SlabConfig } from '@/types/drawing'
 interface SlabConfigurationModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onConfirm: (config: SlabConfig, width: number, length: number) => void
+  onConfirm: (config: SlabConfig) => void
+  initialConfig?: SlabConfig
 }
 
 export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
   open,
   onOpenChange,
   onConfirm,
+  initialConfig,
 }) => {
   const [type, setType] = useState<SlabConfig['type']>('H8')
   const [material, setMaterial] = useState<SlabConfig['material']>('ceramic')
@@ -37,9 +39,24 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
   const [unitLength, setUnitLength] = useState('20')
   const [beamWidth, setBeamWidth] = useState('12')
 
-  // Slab geometry
-  const [slabWidth, setSlabWidth] = useState('5.0')
-  const [slabLength, setSlabLength] = useState('4.0')
+  useEffect(() => {
+    if (open && initialConfig) {
+      setType(initialConfig.type)
+      setMaterial(initialConfig.material)
+      setUnitHeight(initialConfig.unitHeight.toString())
+      setUnitWidth(initialConfig.unitWidth.toString())
+      setUnitLength(initialConfig.unitLength.toString())
+      setBeamWidth(initialConfig.beamWidth.toString())
+    } else if (open) {
+      // Defaults
+      setType('H8')
+      setMaterial('ceramic')
+      setUnitHeight('7')
+      setUnitWidth('30')
+      setUnitLength('20')
+      setBeamWidth('12')
+    }
+  }, [open, initialConfig])
 
   const calculateInterEixo = () => {
     const w = parseFloat(unitWidth) || 0
@@ -58,15 +75,7 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
       interEixo: calculateInterEixo(),
     }
 
-    const w = parseFloat(slabWidth) || 0
-    const l = parseFloat(slabLength) || 0
-
-    if (w <= 0 || l <= 0) {
-      alert('Dimensões da laje inválidas')
-      return
-    }
-
-    onConfirm(config, w, l)
+    onConfirm(config)
     onOpenChange(false)
   }
 
@@ -74,7 +83,7 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Configurar Laje</DialogTitle>
+          <DialogTitle>Configurar Vigotas da Laje</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-2 gap-4">
@@ -171,36 +180,12 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
               </div>
             </div>
           </div>
-
-          <div className="space-y-2 border-t pt-4">
-            <Label className="font-semibold">Dimensões da Laje (m)</Label>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label htmlFor="s-width">Largura</Label>
-                <Input
-                  id="s-width"
-                  type="number"
-                  value={slabWidth}
-                  onChange={(e) => setSlabWidth(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="s-length">Comprimento</Label>
-                <Input
-                  id="s-length"
-                  type="number"
-                  value={slabLength}
-                  onChange={(e) => setSlabLength(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={handleConfirm}>Confirmar</Button>
+          <Button onClick={handleConfirm}>Confirmar e Desenhar Seta</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

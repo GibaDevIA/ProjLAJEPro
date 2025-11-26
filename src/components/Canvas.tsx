@@ -9,10 +9,12 @@ import {
   getPointFromLengthAndAngle,
   isPointInShape,
   isPointInPolygon,
+  calculatePolygonArea,
 } from '@/lib/geometry'
-import { Point, Shape } from '@/types/drawing'
+import { Point, Shape, SlabConfig } from '@/types/drawing'
 import { ShapeRenderer } from './ShapeRenderer'
 import { MeasureModal } from './MeasureModal'
+import { SlabConfigurationModal } from './SlabConfigurationModal'
 import { generateId, cn } from '@/lib/utils'
 import {
   ContextMenu,
@@ -47,6 +49,13 @@ export const Canvas: React.FC = () => {
   const [polyPoints, setPolyPoints] = useState<Point[]>([])
   const [showMeasureModal, setShowMeasureModal] = useState(false)
   const [modalPosition, setModalPosition] = useState<Point>({ x: 0, y: 0 })
+
+  // State for Slab Joist Workflow
+  const [showSlabConfigModal, setShowSlabConfigModal] = useState(false)
+  const [pendingSlabId, setPendingSlabId] = useState<string | null>(null)
+  const [drawingJoistForSlabId, setDrawingJoistForSlabId] = useState<
+    string | null
+  >(null)
 
   // State for moving objects
   const [isMovingShape, setIsMovingShape] = useState(false)
@@ -83,9 +92,14 @@ export const Canvas: React.FC = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.key === 'Delete' || e.key === 'Backspace') && activeShapeId) {
-        // Prevent backspace from navigating back
         if (e.key === 'Backspace') e.preventDefault()
         removeShape(activeShapeId)
+      }
+      if (e.key === 'Escape') {
+        setDrawingStart(null)
+        setPolyPoints([])
+        setShowMeasureModal(false)
+        setDrawingJoistForSlabId(null)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -144,8 +158,6 @@ export const Canvas: React.FC = () => {
       tool === 'select' ||
       ('button' in e && (e as React.MouseEvent).button === 2)
     ) {
-      // Check if clicked on a shape
-      // We iterate in reverse to select top-most shape first
       let clickedShapeId: string | null = null
       for (let i = shapes.length - 1; i >= 0; i--) {
         if (isPointInShape(mousePos, shapes[i], view)) {
@@ -156,7 +168,6 @@ export const Canvas: React.FC = () => {
 
       if (clickedShapeId) {
         setActiveShapeId(clickedShapeId)
-        // Only start moving if left click
         if (!('button' in e) || (e as React.MouseEvent).button === 0) {
           setIsMovingShape(true)
           setMoveStartScreen(mousePos)
@@ -166,7 +177,6 @@ export const Canvas: React.FC = () => {
           }
         }
       } else {
-        // Only deselect if left click on empty space
         if (!('button' in e) || (e as React.MouseEvent).button === 0) {
           setActiveShapeId(null)
         }
@@ -181,7 +191,6 @@ export const Canvas: React.FC = () => {
       (!('button' in e) || (e as React.MouseEvent).button === 0)
     ) {
       if (tool === 'line') {
-        // Use snapped point if available, otherwise raw world pos
         const startPoint = snapPoint ? snapPoint.point : worldPos
 
         if (polyPoints.length === 0) {
@@ -194,7 +203,6 @@ export const Canvas: React.FC = () => {
           const distToStart = calculateLineLength(startPoint, firstPoint)
           const thresholdMeters = 8 / view.scale
 
-          // Close polygon if near start
           if (polyPoints.length >= 3 && distToStart < thresholdMeters) {
             const newShape: Shape = {
               id: generateId(),
@@ -206,7 +214,6 @@ export const Canvas: React.FC = () => {
             setDrawingStart(null)
             setShowMeasureModal(false)
           } else {
-            // Continue line
             setPolyPoints([...polyPoints, startPoint])
             setDrawingStart(startPoint)
             setModalPosition(mousePos)
@@ -220,26 +227,37 @@ export const Canvas: React.FC = () => {
             addShape(newShape)
           }
         }
+      } else if (tool === 'rectangle') {
+        const startPoint = snapPoint ? snapPoint.point : worldPos
+        setDrawingStart(startPoint)
       } else if (tool === 'slab_joist') {
-        // Check if inside a polygon or rectangle
-        const polygons = shapes.filter(
-          (s) => s.type === 'polygon' || s.type === 'rectangle',
-        )
-        let insideShape = false
-        for (const poly of polygons) {
-          const screenPoints = poly.points.map((p) => worldToScreen(p, view))
-          if (isPointInPolygon(mousePos, screenPoints)) {
-            insideShape = true
-            break
+        if (drawingJoistForSlabId) {
+          // We are in "draw arrow" mode for a specific slab
+          const slab = shapes.find((s) => s.id === drawingJoistForSlabId)
+          if (slab && isPointInShape(mousePos, slab, view)) {
+            setDrawingStart(worldPos)
+          } else {
+            toast.error('Comece o desenho da seta dentro da laje selecionada.')
           }
-        }
-
-        if (insideShape) {
-          setDrawingStart(worldPos)
         } else {
-          toast.error(
-            'Clique dentro de uma laje (polígono fechado) para lançar a vigota.',
+          // We need to select a slab to configure
+          const polygons = shapes.filter(
+            (s) => s.type === 'polygon' || s.type === 'rectangle',
           )
+          let clickedSlabId: string | null = null
+          for (let i = polygons.length - 1; i >= 0; i--) {
+            if (isPointInShape(mousePos, polygons[i], view)) {
+              clickedSlabId = polygons[i].id
+              break
+            }
+          }
+
+          if (clickedSlabId) {
+            setPendingSlabId(clickedSlabId)
+            setShowSlabConfigModal(true)
+          } else {
+            toast.error('Clique em uma laje para configurar as vigotas.')
+          }
         }
       }
     }
@@ -257,7 +275,6 @@ export const Canvas: React.FC = () => {
     const mousePos = { x: clientX - rect.left, y: clientY - rect.top }
     setCurrentMousePos(mousePos)
 
-    // Handle Panning
     if (isPanning && panStart) {
       const dx = mousePos.x - panStart.x
       const dy = mousePos.y - panStart.y
@@ -269,7 +286,6 @@ export const Canvas: React.FC = () => {
       return
     }
 
-    // Handle Moving Shape
     if (
       isMovingShape &&
       moveStartScreen &&
@@ -278,26 +294,19 @@ export const Canvas: React.FC = () => {
     ) {
       const dxScreen = mousePos.x - moveStartScreen.x
       const dyScreen = mousePos.y - moveStartScreen.y
-
-      // Convert screen delta to world delta
       const dxWorld = dxScreen / view.scale
       const dyWorld = dyScreen / view.scale
 
-      // Calculate proposed new points
       const proposedPoints = originalShapePoints.map((p) => ({
         x: p.x + dxWorld,
         y: p.y + dyWorld,
       }))
 
-      // Check for snapping
-      // We check each vertex of the moving shape against vertices of other shapes
       let bestSnap: { delta: Point; target: Point } | null = null
-      let minSnapDist = 8 // pixels
+      let minSnapDist = 8
 
-      // Iterate over moving shape vertices
       for (const p of proposedPoints) {
         const pScreen = worldToScreen(p, view)
-        // Check snap against other shapes and grid
         const snap = getSnapPoint(
           pScreen,
           shapes,
@@ -308,9 +317,6 @@ export const Canvas: React.FC = () => {
 
         if (snap && snap.distance < minSnapDist) {
           minSnapDist = snap.distance
-          // Calculate the adjustment needed to align p with snap.point
-          // snap.point is the target world coordinate
-          // p is the current proposed world coordinate
           const adjustment = {
             x: snap.point.x - p.x,
             y: snap.point.y - p.y,
@@ -321,7 +327,6 @@ export const Canvas: React.FC = () => {
 
       let finalPoints = proposedPoints
       if (bestSnap) {
-        // Apply adjustment to all points
         finalPoints = proposedPoints.map((p) => ({
           x: p.x + bestSnap.delta.x,
           y: p.y + bestSnap.delta.y,
@@ -338,7 +343,6 @@ export const Canvas: React.FC = () => {
       return
     }
 
-    // Handle Snapping for Drawing Tools
     if (tool === 'line' || tool === 'rectangle') {
       const snap = getSnapPoint(mousePos, shapes, view, [], gridVisible)
       setSnapPoint(snap)
@@ -352,32 +356,42 @@ export const Canvas: React.FC = () => {
     setPanStart(null)
 
     if (isMovingShape) {
-      // Check if we formed a polygon by connecting lines
       checkAndMergeLines()
     }
 
-    if (tool === 'slab_joist' && drawingStart && currentMousePos) {
-      const endWorld = screenToWorld(currentMousePos, view)
-      const length = calculateLineLength(drawingStart, endWorld)
+    if (tool === 'rectangle' && drawingStart && currentMousePos) {
+      const endWorld = snapPoint
+        ? snapPoint.point
+        : screenToWorld(currentMousePos, view)
+      const width = Math.abs(endWorld.x - drawingStart.x)
+      const height = Math.abs(endWorld.y - drawingStart.y)
 
-      if (length > 0.1) {
-        // Calculate next label
-        const joists = shapes.filter((s) => s.properties?.isJoist)
-        const existingNumbers = joists.map((j) => {
-          const match = j.properties?.label?.match(/^L(\d+)$/)
+      if (width > 0.1 && height > 0.1) {
+        // Generate Label
+        const slabs = shapes.filter(
+          (s) => s.type === 'rectangle' || s.type === 'polygon',
+        )
+        const existingNumbers = slabs.map((s) => {
+          const match = s.properties?.label?.match(/^L(\d+)$/)
           return match ? parseInt(match[1], 10) : 0
         })
         const nextNumber =
           existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1
 
-        // Minimum length check
         const newShape: Shape = {
           id: generateId(),
-          type: 'arrow',
-          points: [drawingStart, endWorld],
+          type: 'rectangle',
+          points: [
+            drawingStart,
+            { x: endWorld.x, y: drawingStart.y },
+            endWorld,
+            { x: drawingStart.x, y: endWorld.y },
+          ],
           properties: {
-            isJoist: true,
+            width,
+            height,
             label: `L${nextNumber}`,
+            area: width * height,
           },
         }
         addShape(newShape)
@@ -385,10 +399,29 @@ export const Canvas: React.FC = () => {
       setDrawingStart(null)
     }
 
+    if (tool === 'slab_joist' && drawingStart && currentMousePos) {
+      const endWorld = screenToWorld(currentMousePos, view)
+      const length = calculateLineLength(drawingStart, endWorld)
+
+      if (length > 0.1) {
+        const newShape: Shape = {
+          id: generateId(),
+          type: 'arrow',
+          points: [drawingStart, endWorld],
+          properties: {
+            isJoist: true,
+          },
+        }
+        addShape(newShape)
+        setDrawingJoistForSlabId(null) // Reset after drawing one arrow
+        toast.success('Direção das vigotas definida.')
+      }
+      setDrawingStart(null)
+    }
+
     setIsMovingShape(false)
     setMoveStartScreen(null)
     setOriginalShapePoints(null)
-    // Snap point might be lingering from move, clear it
     if (tool === 'select') {
       setSnapPoint(null)
     }
@@ -435,10 +468,18 @@ export const Canvas: React.FC = () => {
     setModalPosition(newScreenPos)
   }
 
-  const handleModalCancel = () => {
-    setShowMeasureModal(false)
-    setPolyPoints([])
-    setDrawingStart(null)
+  const handleSlabConfigConfirm = (config: SlabConfig) => {
+    if (pendingSlabId) {
+      updateShape(pendingSlabId, {
+        properties: {
+          ...shapes.find((s) => s.id === pendingSlabId)?.properties,
+          slabConfig: config,
+        },
+      })
+      setDrawingJoistForSlabId(pendingSlabId)
+      setPendingSlabId(null)
+      toast.info('Agora desenhe a seta indicando a direção das vigotas.')
+    }
   }
 
   const renderGrid = () => {
@@ -551,6 +592,45 @@ export const Canvas: React.FC = () => {
         </g>
       )
     }
+    if (tool === 'rectangle' && drawingStart && currentMousePos) {
+      const startScreen = worldToScreen(drawingStart, view)
+      const endScreen = snapPoint ? snapPoint.targetPoint : currentMousePos
+      const width = Math.abs(
+        (snapPoint
+          ? snapPoint.point.x
+          : screenToWorld(currentMousePos, view).x) - drawingStart.x,
+      )
+      const height = Math.abs(
+        (snapPoint
+          ? snapPoint.point.y
+          : screenToWorld(currentMousePos, view).y) - drawingStart.y,
+      )
+
+      return (
+        <g>
+          <rect
+            x={Math.min(startScreen.x, endScreen.x)}
+            y={Math.min(startScreen.y, endScreen.y)}
+            width={Math.abs(endScreen.x - startScreen.x)}
+            height={Math.abs(endScreen.y - startScreen.y)}
+            fill="#e0f7fa"
+            fillOpacity="0.3"
+            stroke="#007bff"
+            strokeWidth={2}
+            strokeDasharray="5 5"
+          />
+          <text
+            x={Math.min(startScreen.x, endScreen.x)}
+            y={Math.min(startScreen.y, endScreen.y) - 10}
+            className="text-xs font-bold"
+            fill="#007bff"
+            style={{ fontSize: '12px', fontFamily: 'Inter' }}
+          >
+            {width.toFixed(2)}m x {height.toFixed(2)}m
+          </text>
+        </g>
+      )
+    }
     if (tool === 'slab_joist' && drawingStart && currentMousePos) {
       const startScreen = worldToScreen(drawingStart, view)
       const endScreen = currentMousePos
@@ -604,11 +684,7 @@ export const Canvas: React.FC = () => {
             onTouchStart={handleMouseDown}
             onTouchMove={handleMouseMove}
             onTouchEnd={handleMouseUp}
-            onContextMenu={(e) => {
-              // Prevent default context menu, but allow our custom one
-              // e.preventDefault() is handled by ContextMenuTrigger usually,
-              // but we might need to ensure selection happens first in handleMouseDown
-            }}
+            onContextMenu={(e) => {}}
           >
             <svg
               width="100%"
@@ -661,7 +737,6 @@ export const Canvas: React.FC = () => {
               {renderGrid()}
 
               {shapes.map((shape) => {
-                // Find if there is an arrow inside this shape (if it's a slab)
                 let joistArrow: Shape | undefined
                 if (shape.type === 'rectangle' || shape.type === 'polygon') {
                   joistArrow = shapes.find(
@@ -718,7 +793,11 @@ export const Canvas: React.FC = () => {
             <MeasureModal
               position={modalPosition}
               onConfirm={handleModalConfirm}
-              onCancel={handleModalCancel}
+              onCancel={() => {
+                setShowMeasureModal(false)
+                setPolyPoints([])
+                setDrawingStart(null)
+              }}
               initialLength={calculateLineLength(
                 drawingStart,
                 screenToWorld(currentMousePos, view),
@@ -729,6 +808,18 @@ export const Canvas: React.FC = () => {
               )}
             />
           )}
+
+          <SlabConfigurationModal
+            open={showSlabConfigModal}
+            onOpenChange={setShowSlabConfigModal}
+            onConfirm={handleSlabConfigConfirm}
+            initialConfig={
+              pendingSlabId
+                ? shapes.find((s) => s.id === pendingSlabId)?.properties
+                    ?.slabConfig
+                : undefined
+            }
+          />
 
           <div className="absolute bottom-4 right-4 bg-white/90 p-2 rounded shadow text-xs font-mono pointer-events-none no-print">
             Scale: 1m = {view.scale.toFixed(0)}px

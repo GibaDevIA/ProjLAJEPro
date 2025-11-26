@@ -207,6 +207,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
                 stroke="#6b7280"
                 strokeWidth={1}
                 strokeOpacity={0.6}
+                strokeDasharray="4 4"
               />
             )
           })}
@@ -233,7 +234,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
               fill="#1f2937"
               style={{ fontSize: '10px', fontFamily: 'Inter' }}
             >
-              {area.toFixed(2)} m²
+              {shape.properties?.label || `Laje`} ({area.toFixed(2)} m²)
             </text>
           </g>
           {dimensions}
