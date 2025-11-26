@@ -361,12 +361,24 @@ export const Canvas: React.FC = () => {
       const length = calculateLineLength(drawingStart, endWorld)
 
       if (length > 0.1) {
+        // Calculate next label
+        const joists = shapes.filter((s) => s.properties?.isJoist)
+        const existingNumbers = joists.map((j) => {
+          const match = j.properties?.label?.match(/^L(\d+)$/)
+          return match ? parseInt(match[1], 10) : 0
+        })
+        const nextNumber =
+          existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1
+
         // Minimum length check
         const newShape: Shape = {
           id: generateId(),
           type: 'arrow',
           points: [drawingStart, endWorld],
-          properties: { isJoist: true },
+          properties: {
+            isJoist: true,
+            label: `L${nextNumber}`,
+          },
         }
         addShape(newShape)
       }
@@ -552,6 +564,7 @@ export const Canvas: React.FC = () => {
             stroke="#ef4444"
             strokeWidth={2}
             markerEnd="url(#arrowhead-preview)"
+            markerStart="url(#arrowhead-start-preview)"
           />
         </g>
       )
@@ -614,6 +627,16 @@ export const Canvas: React.FC = () => {
                   <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444" />
                 </marker>
                 <marker
+                  id="arrowhead-start"
+                  markerWidth="10"
+                  markerHeight="7"
+                  refX="1"
+                  refY="3.5"
+                  orient="auto"
+                >
+                  <polygon points="10 0, 0 3.5, 10 7" fill="#ef4444" />
+                </marker>
+                <marker
                   id="arrowhead-preview"
                   markerWidth="10"
                   markerHeight="7"
@@ -622,6 +645,16 @@ export const Canvas: React.FC = () => {
                   orient="auto"
                 >
                   <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444" />
+                </marker>
+                <marker
+                  id="arrowhead-start-preview"
+                  markerWidth="10"
+                  markerHeight="7"
+                  refX="1"
+                  refY="3.5"
+                  orient="auto"
+                >
+                  <polygon points="10 0, 0 3.5, 10 7" fill="#ef4444" />
                 </marker>
               </defs>
 

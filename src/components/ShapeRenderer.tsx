@@ -19,6 +19,13 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
     if (shape.type === 'arrow') {
       const p1 = screenPoints[0]
       const p2 = screenPoints[1]
+      const isJoist = shape.properties?.isJoist
+      const label = shape.properties?.label
+
+      // Calculate midpoint for label
+      const midX = (p1.x + p2.x) / 2
+      const midY = (p1.y + p2.y) / 2
+
       return (
         <g className="group">
           <line
@@ -29,8 +36,25 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
             stroke={isSelected ? '#007bff' : '#ef4444'}
             strokeWidth={isSelected ? 3 : 2}
             markerEnd="url(#arrowhead)"
+            markerStart={isJoist ? 'url(#arrowhead-start)' : undefined}
             className="transition-colors duration-150"
           />
+          {isJoist && label && (
+            <g transform={`translate(${midX}, ${midY})`}>
+              <circle r="10" fill="white" stroke="#ef4444" strokeWidth="1" />
+              <text
+                x="0"
+                y="0"
+                dy="3"
+                textAnchor="middle"
+                className="text-[10px] font-bold select-none"
+                fill="#ef4444"
+                style={{ fontSize: '10px', fontFamily: 'Inter' }}
+              >
+                {label}
+              </text>
+            </g>
+          )}
         </g>
       )
     }

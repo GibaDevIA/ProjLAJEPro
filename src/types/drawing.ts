@@ -17,6 +17,7 @@ export interface Shape {
     length?: number
     angle?: number
     isJoist?: boolean
+    label?: string
   }
 }
 
