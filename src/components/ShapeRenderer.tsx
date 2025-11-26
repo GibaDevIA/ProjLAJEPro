@@ -12,110 +12,108 @@ interface ShapeRendererProps {
   isSelected: boolean
 }
 
-export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
-  shape,
-  view,
-  isSelected,
-}) => {
-  const screenPoints = shape.points.map((p) => worldToScreen(p, view))
+export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
+  ({ shape, view, isSelected }) => {
+    const screenPoints = shape.points.map((p) => worldToScreen(p, view))
 
-  if (shape.type === 'line') {
-    const p1 = screenPoints[0]
-    const p2 = screenPoints[1]
-    const length = calculateLineLength(shape.points[0], shape.points[1])
-    const midX = (p1.x + p2.x) / 2
-    const midY = (p1.y + p2.y) / 2
+    if (shape.type === 'line') {
+      const p1 = screenPoints[0]
+      const p2 = screenPoints[1]
+      const length = calculateLineLength(shape.points[0], shape.points[1])
+      const midX = (p1.x + p2.x) / 2
+      const midY = (p1.y + p2.y) / 2
 
-    return (
-      <g className="group">
-        <line
-          x1={p1.x}
-          y1={p1.y}
-          x2={p2.x}
-          y2={p2.y}
-          stroke={isSelected ? '#007bff' : '#343a40'}
-          strokeWidth={isSelected ? 3 : 2}
-          strokeLinecap="round"
-          className="transition-colors duration-150"
-        />
-        <circle cx={p1.x} cy={p1.y} r={4} fill="#343a40" />
-        <circle cx={p2.x} cy={p2.y} r={4} fill="#343a40" />
-
-        <g transform={`translate(${midX}, ${midY})`}>
-          <rect
-            x="-24"
-            y="-10"
-            width="48"
-            height="20"
-            rx="2"
-            fill="white"
-            fillOpacity="0.8"
+      return (
+        <g className="group">
+          <line
+            x1={p1.x}
+            y1={p1.y}
+            x2={p2.x}
+            y2={p2.y}
+            stroke={isSelected ? '#007bff' : '#343a40'}
+            strokeWidth={isSelected ? 3 : 2}
+            strokeLinecap="round"
+            className="transition-colors duration-150"
           />
-          <text
-            x="0"
-            y="4"
-            textAnchor="middle"
-            className="text-[10px] font-bold pointer-events-none select-none"
-            fill="#1f2937"
-            style={{ fontSize: '10px', fontFamily: 'Inter' }}
-          >
-            {length.toFixed(2)} m
-          </text>
+          <circle cx={p1.x} cy={p1.y} r={4} fill="#343a40" />
+          <circle cx={p2.x} cy={p2.y} r={4} fill="#343a40" />
+
+          <g transform={`translate(${midX}, ${midY})`}>
+            <rect
+              x="-24"
+              y="-10"
+              width="48"
+              height="20"
+              rx="2"
+              fill="white"
+              fillOpacity="0.8"
+            />
+            <text
+              x="0"
+              y="4"
+              textAnchor="middle"
+              className="text-[10px] font-bold pointer-events-none select-none"
+              fill="#1f2937"
+              style={{ fontSize: '10px', fontFamily: 'Inter' }}
+            >
+              {length.toFixed(2)} m
+            </text>
+          </g>
         </g>
-      </g>
-    )
-  }
+      )
+    }
 
-  if (shape.type === 'rectangle' || shape.type === 'polygon') {
-    const pathData = `M ${screenPoints.map((p) => `${p.x},${p.y}`).join(' L ')} Z`
-    const area = calculatePolygonArea(shape.points)
+    if (shape.type === 'rectangle' || shape.type === 'polygon') {
+      const pathData = `M ${screenPoints.map((p) => `${p.x},${p.y}`).join(' L ')} Z`
+      const area = calculatePolygonArea(shape.points)
 
-    const centroid = screenPoints.reduce(
-      (acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }),
-      { x: 0, y: 0 },
-    )
-    centroid.x /= screenPoints.length
-    centroid.y /= screenPoints.length
+      const centroid = screenPoints.reduce(
+        (acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }),
+        { x: 0, y: 0 },
+      )
+      centroid.x /= screenPoints.length
+      centroid.y /= screenPoints.length
 
-    return (
-      <g className="group">
-        <path
-          d={pathData}
-          fill="#e0f7fa"
-          fillOpacity="0.3"
-          stroke={isSelected ? '#007bff' : '#343a40'}
-          strokeWidth={isSelected ? 3 : 2}
-          strokeLinejoin="round"
-          className="transition-colors duration-150"
-        />
-        {screenPoints.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r={4} fill="#343a40" />
-        ))}
-
-        <g transform={`translate(${centroid.x}, ${centroid.y})`}>
-          <rect
-            x="-30"
-            y="-10"
-            width="60"
-            height="20"
-            rx="2"
-            fill="white"
-            fillOpacity="0.8"
+      return (
+        <g className="group">
+          <path
+            d={pathData}
+            fill="#e0f7fa"
+            fillOpacity="0.3"
+            stroke={isSelected ? '#007bff' : '#343a40'}
+            strokeWidth={isSelected ? 3 : 2}
+            strokeLinejoin="round"
+            className="transition-colors duration-150"
           />
-          <text
-            x="0"
-            y="4"
-            textAnchor="middle"
-            className="text-[10px] font-bold pointer-events-none select-none"
-            fill="#1f2937"
-            style={{ fontSize: '10px', fontFamily: 'Inter' }}
-          >
-            {area.toFixed(2)} m²
-          </text>
-        </g>
-      </g>
-    )
-  }
+          {screenPoints.map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r={4} fill="#343a40" />
+          ))}
 
-  return null
-}
+          <g transform={`translate(${centroid.x}, ${centroid.y})`}>
+            <rect
+              x="-30"
+              y="-10"
+              width="60"
+              height="20"
+              rx="2"
+              fill="white"
+              fillOpacity="0.8"
+            />
+            <text
+              x="0"
+              y="4"
+              textAnchor="middle"
+              className="text-[10px] font-bold pointer-events-none select-none"
+              fill="#1f2937"
+              style={{ fontSize: '10px', fontFamily: 'Inter' }}
+            >
+              {area.toFixed(2)} m²
+            </text>
+          </g>
+        </g>
+      )
+    }
+
+    return null
+  },
+)

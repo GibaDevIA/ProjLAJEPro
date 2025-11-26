@@ -11,6 +11,7 @@ interface DrawingContextType {
   shapes: Shape[]
   setShapes: React.Dispatch<React.SetStateAction<Shape[]>>
   addShape: (shape: Shape) => void
+  updateShape: (id: string, updates: Partial<Shape>) => void
   removeShape: (id: string) => void
   view: ViewState
   setView: React.Dispatch<React.SetStateAction<ViewState>>
@@ -39,6 +40,12 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
 
   const addShape = useCallback((shape: Shape) => {
     setShapes((prev) => [...prev, shape])
+  }, [])
+
+  const updateShape = useCallback((id: string, updates: Partial<Shape>) => {
+    setShapes((prev) =>
+      prev.map((shape) => (shape.id === id ? { ...shape, ...updates } : shape)),
+    )
   }, [])
 
   const removeShape = useCallback(
@@ -101,6 +108,7 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
         shapes,
         setShapes,
         addShape,
+        updateShape,
         removeShape,
         view,
         setView,

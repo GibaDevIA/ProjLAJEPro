@@ -7,6 +7,7 @@ import {
   calculateLineLength,
   calculateAngle,
   getPointFromLengthAndAngle,
+  isPointInShape,
 } from '@/lib/geometry'
 import { Point, Shape } from '@/types/drawing'
 import { ShapeRenderer } from './ShapeRenderer'
@@ -18,6 +19,7 @@ export const Canvas: React.FC = () => {
   const {
     shapes,
     addShape,
+    updateShape,
     view,
     setView,
     tool,
@@ -26,18 +28,30 @@ export const Canvas: React.FC = () => {
     gridVisible,
   } = useDrawing()
 
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState<Point | null>(null)
+  // State for panning
+  const [isPanning, setIsPanning] = useState(false)
+  const [panStart, setPanStart] = useState<Point | null>(null)
+
+  // State for drawing
   const [drawingStart, setDrawingStart] = useState<Point | null>(null)
+  const [polyPoints, setPolyPoints] = useState<Point[]>([])
+  const [showMeasureModal, setShowMeasureModal] = useState(false)
+  const [modalPosition, setModalPosition] = useState<Point>({ x: 0, y: 0 })
+
+  // State for moving objects
+  const [isMovingShape, setIsMovingShape] = useState(false)
+  const [moveStartScreen, setMoveStartScreen] = useState<Point | null>(null)
+  const [originalShapePoints, setOriginalShapePoints] = useState<
+    Point[] | null
+  >(null)
+
+  // General mouse state
   const [currentMousePos, setCurrentMousePos] = useState<Point | null>(null)
   const [snapPoint, setSnapPoint] = useState<{
     point: Point
     targetPoint: Point
   } | null>(null)
-  const [showMeasureModal, setShowMeasureModal] = useState(false)
-  const [modalPosition, setModalPosition] = useState<Point>({ x: 0, y: 0 })
 
-  const [polyPoints, setPolyPoints] = useState<Point[]>([])
   const initializedRef = useRef(false)
 
   useEffect(() => {
@@ -87,8 +101,9 @@ export const Canvas: React.FC = () => {
     if (!rect) return
 
     const mousePos = { x: clientX - rect.left, y: clientY - rect.top }
-    const worldPos = snapPoint ? snapPoint.point : screenToWorld(mousePos, view)
+    const worldPos = screenToWorld(mousePos, view)
 
+    // Handle Pan Tool or Middle Click or Spacebar
     if (
       tool === 'pan' ||
       ('button' in e && (e as React.MouseEvent).button === 1) ||
@@ -96,22 +111,53 @@ export const Canvas: React.FC = () => {
         (e as React.MouseEvent).button === 0 &&
         (e as React.MouseEvent).getModifierState('Space'))
     ) {
-      setIsDragging(true)
-      setDragStart(mousePos)
+      setIsPanning(true)
+      setPanStart(mousePos)
       return
     }
 
+    // Handle Select Tool
+    if (tool === 'select') {
+      // Check if clicked on a shape
+      // We iterate in reverse to select top-most shape first
+      let clickedShapeId: string | null = null
+      for (let i = shapes.length - 1; i >= 0; i--) {
+        if (isPointInShape(mousePos, shapes[i], view)) {
+          clickedShapeId = shapes[i].id
+          break
+        }
+      }
+
+      if (clickedShapeId) {
+        setActiveShapeId(clickedShapeId)
+        setIsMovingShape(true)
+        setMoveStartScreen(mousePos)
+        const shape = shapes.find((s) => s.id === clickedShapeId)
+        if (shape) {
+          setOriginalShapePoints([...shape.points])
+        }
+      } else {
+        setActiveShapeId(null)
+      }
+      return
+    }
+
+    // Handle Drawing Tools
     if (tool === 'line') {
+      // Use snapped point if available, otherwise raw world pos
+      const startPoint = snapPoint ? snapPoint.point : worldPos
+
       if (polyPoints.length === 0) {
-        setPolyPoints([worldPos])
-        setDrawingStart(worldPos)
+        setPolyPoints([startPoint])
+        setDrawingStart(startPoint)
         setModalPosition(mousePos)
         setShowMeasureModal(true)
       } else {
-        const startPoint = polyPoints[0]
-        const distToStart = calculateLineLength(worldPos, startPoint)
+        const firstPoint = polyPoints[0]
+        const distToStart = calculateLineLength(startPoint, firstPoint)
         const thresholdMeters = 8 / view.scale
 
+        // Close polygon if near start
         if (polyPoints.length >= 3 && distToStart < thresholdMeters) {
           const newShape: Shape = {
             id: generateId(),
@@ -123,21 +169,20 @@ export const Canvas: React.FC = () => {
           setDrawingStart(null)
           setShowMeasureModal(false)
         } else {
-          setPolyPoints([...polyPoints, worldPos])
-          setDrawingStart(worldPos)
+          // Continue line
+          setPolyPoints([...polyPoints, startPoint])
+          setDrawingStart(startPoint)
           setModalPosition(mousePos)
           setShowMeasureModal(true)
 
           const newShape: Shape = {
             id: generateId(),
             type: 'line',
-            points: [polyPoints[polyPoints.length - 1], worldPos],
+            points: [polyPoints[polyPoints.length - 1], startPoint],
           }
           addShape(newShape)
         }
       }
-    } else if (tool === 'select') {
-      setActiveShapeId(null)
     }
   }
 
@@ -153,28 +198,107 @@ export const Canvas: React.FC = () => {
     const mousePos = { x: clientX - rect.left, y: clientY - rect.top }
     setCurrentMousePos(mousePos)
 
-    if (isDragging && dragStart) {
-      const dx = mousePos.x - dragStart.x
-      const dy = mousePos.y - dragStart.y
+    // Handle Panning
+    if (isPanning && panStart) {
+      const dx = mousePos.x - panStart.x
+      const dy = mousePos.y - panStart.y
       setView({
         ...view,
         offset: { x: view.offset.x + dx, y: view.offset.y + dy },
       })
-      setDragStart(mousePos)
+      setPanStart(mousePos)
       return
     }
 
+    // Handle Moving Shape
+    if (
+      isMovingShape &&
+      moveStartScreen &&
+      activeShapeId &&
+      originalShapePoints
+    ) {
+      const dxScreen = mousePos.x - moveStartScreen.x
+      const dyScreen = mousePos.y - moveStartScreen.y
+
+      // Convert screen delta to world delta
+      const dxWorld = dxScreen / view.scale
+      const dyWorld = dyScreen / view.scale
+
+      // Calculate proposed new points
+      const proposedPoints = originalShapePoints.map((p) => ({
+        x: p.x + dxWorld,
+        y: p.y + dyWorld,
+      }))
+
+      // Check for snapping
+      // We check each vertex of the moving shape against vertices of other shapes
+      let bestSnap: { delta: Point; target: Point } | null = null
+      let minSnapDist = 8 // pixels
+
+      // Iterate over moving shape vertices
+      for (const p of proposedPoints) {
+        const pScreen = worldToScreen(p, view)
+        // Check snap against other shapes and grid
+        const snap = getSnapPoint(
+          pScreen,
+          shapes,
+          view,
+          [activeShapeId],
+          gridVisible,
+        )
+
+        if (snap && snap.distance < minSnapDist) {
+          minSnapDist = snap.distance
+          // Calculate the adjustment needed to align p with snap.point
+          // snap.point is the target world coordinate
+          // p is the current proposed world coordinate
+          const adjustment = {
+            x: snap.point.x - p.x,
+            y: snap.point.y - p.y,
+          }
+          bestSnap = { delta: adjustment, target: snap.targetPoint }
+        }
+      }
+
+      let finalPoints = proposedPoints
+      if (bestSnap) {
+        // Apply adjustment to all points
+        finalPoints = proposedPoints.map((p) => ({
+          x: p.x + bestSnap.delta.x,
+          y: p.y + bestSnap.delta.y,
+        }))
+        setSnapPoint({
+          point: screenToWorld(bestSnap.target, view),
+          targetPoint: bestSnap.target,
+        })
+      } else {
+        setSnapPoint(null)
+      }
+
+      updateShape(activeShapeId, { points: finalPoints })
+      return
+    }
+
+    // Handle Snapping for Drawing Tools
     if (tool === 'line' || tool === 'rectangle') {
-      const snap = getSnapPoint(mousePos, shapes, view)
+      const snap = getSnapPoint(mousePos, shapes, view, [], gridVisible)
       setSnapPoint(snap)
     } else {
-      setSnapPoint(null)
+      if (!isMovingShape) setSnapPoint(null)
     }
   }
 
   const handleMouseUp = () => {
-    setIsDragging(false)
-    setDragStart(null)
+    setIsPanning(false)
+    setPanStart(null)
+
+    setIsMovingShape(false)
+    setMoveStartScreen(null)
+    setOriginalShapePoints(null)
+    // Snap point might be lingering from move, clear it
+    if (tool === 'select') {
+      setSnapPoint(null)
+    }
   }
 
   const handleModalConfirm = (length: number, angle?: number) => {
@@ -186,7 +310,9 @@ export const Canvas: React.FC = () => {
       endPoint = getPointFromLengthAndAngle(drawingStart, length, angle)
     } else {
       if (currentMousePos) {
-        const currentWorld = screenToWorld(currentMousePos, view)
+        const currentWorld = snapPoint
+          ? snapPoint.point
+          : screenToWorld(currentMousePos, view)
         const currentAngle = calculateAngle(drawingStart, currentWorld)
         endPoint = getPointFromLengthAndAngle(
           drawingStart,
@@ -340,8 +466,19 @@ export const Canvas: React.FC = () => {
       <div
         ref={containerRef}
         className={cn('w-full h-full cursor-crosshair', {
-          'cursor-grab': tool === 'pan' && !isDragging,
-          'cursor-grabbing': tool === 'pan' && isDragging,
+          'cursor-grab': tool === 'pan' && !isPanning,
+          'cursor-grabbing': tool === 'pan' && isPanning,
+          'cursor-move':
+            tool === 'select' &&
+            activeShapeId &&
+            currentMousePos &&
+            shapes.find((s) => s.id === activeShapeId) &&
+            isPointInShape(
+              currentMousePos,
+              shapes.find((s) => s.id === activeShapeId)!,
+              view,
+            ),
+          'cursor-default': tool === 'select' && !activeShapeId,
         })}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
