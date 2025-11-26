@@ -6,6 +6,8 @@ import React, {
   ReactNode,
 } from 'react'
 import { Shape, ViewState, ToolType } from '@/types/drawing'
+import { findClosedCycle, calculatePolygonArea } from '@/lib/geometry'
+import { generateId } from '@/lib/utils'
 
 interface DrawingContextType {
   shapes: Shape[]
@@ -24,6 +26,7 @@ interface DrawingContextType {
   resetView: () => void
   exportToJSON: () => void
   loadFromJSON: (file: File) => void
+  checkAndMergeLines: () => boolean
 }
 
 const DrawingContext = createContext<DrawingContextType | undefined>(undefined)
@@ -102,6 +105,31 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
     reader.readAsText(file)
   }, [])
 
+  const checkAndMergeLines = useCallback(() => {
+    const lines = shapes.filter((s) => s.type === 'line')
+    const cycle = findClosedCycle(lines)
+
+    if (cycle) {
+      const newPolygon: Shape = {
+        id: generateId(),
+        type: 'polygon',
+        points: cycle.points,
+        properties: {
+          area: calculatePolygonArea(cycle.points),
+        },
+      }
+
+      setShapes((prev) => {
+        const remaining = prev.filter((s) => !cycle.lineIds.includes(s.id))
+        return [...remaining, newPolygon]
+      })
+
+      setActiveShapeId(newPolygon.id)
+      return true
+    }
+    return false
+  }, [shapes])
+
   return (
     <DrawingContext.Provider
       value={{
@@ -121,6 +149,7 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
         resetView,
         exportToJSON,
         loadFromJSON,
+        checkAndMergeLines,
       }}
     >
       {children}

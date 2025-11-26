@@ -170,3 +170,74 @@ export function getPointFromLengthAndAngle(
     y: start.y + length * Math.sin(angleRad),
   }
 }
+
+export function findClosedCycle(
+  lines: Shape[],
+): { lineIds: string[]; points: Point[] } | null {
+  const adj = new Map<string, { id: string; other: string }[]>()
+  const pointMap = new Map<string, Point>()
+  const key = (p: Point) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`
+
+  // Build Graph
+  for (const line of lines) {
+    if (line.type !== 'line' || line.points.length < 2) continue
+    const p1 = line.points[0]
+    const p2 = line.points[1]
+    const k1 = key(p1)
+    const k2 = key(p2)
+
+    pointMap.set(k1, p1)
+    pointMap.set(k2, p2)
+
+    if (!adj.has(k1)) adj.set(k1, [])
+    if (!adj.has(k2)) adj.set(k2, [])
+
+    adj.get(k1)!.push({ id: line.id, other: k2 })
+    adj.get(k2)!.push({ id: line.id, other: k1 })
+  }
+
+  function dfs(
+    curr: string,
+    start: string,
+    currentPath: { node: string; edgeId: string }[],
+  ): { lineIds: string[]; points: Point[] } | null {
+    const neighbors = adj.get(curr)
+    if (!neighbors) return null
+
+    for (const edge of neighbors) {
+      // Don't go back through the same edge we just came from
+      if (
+        currentPath.length > 0 &&
+        edge.id === currentPath[currentPath.length - 1].edgeId
+      )
+        continue
+
+      // If we found the start node and path is long enough (at least 2 edges before closing, so 3 edges total)
+      if (edge.other === start && currentPath.length >= 2) {
+        const cycleEdges = [...currentPath.map((p) => p.edgeId), edge.id]
+        const cyclePoints = currentPath.map((p) => pointMap.get(p.node)!)
+        cyclePoints.push(pointMap.get(curr)!)
+        return { lineIds: cycleEdges, points: cyclePoints }
+      }
+
+      // If not visited in this path (avoid loops within path)
+      if (!currentPath.some((p) => p.node === edge.other)) {
+        const result = dfs(edge.other, start, [
+          ...currentPath,
+          { node: curr, edgeId: edge.id },
+        ])
+        if (result) return result
+      }
+    }
+    return null
+  }
+
+  // Iterate all nodes to find a cycle
+  for (const [nodeKey, neighbors] of adj.entries()) {
+    if (neighbors.length < 2) continue
+    const result = dfs(nodeKey, nodeKey, [])
+    if (result) return result
+  }
+
+  return null
+}

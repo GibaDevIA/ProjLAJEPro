@@ -13,6 +13,12 @@ import { Point, Shape } from '@/types/drawing'
 import { ShapeRenderer } from './ShapeRenderer'
 import { MeasureModal } from './MeasureModal'
 import { generateId, cn } from '@/lib/utils'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 
 export const Canvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -20,12 +26,14 @@ export const Canvas: React.FC = () => {
     shapes,
     addShape,
     updateShape,
+    removeShape,
     view,
     setView,
     tool,
     activeShapeId,
     setActiveShapeId,
     gridVisible,
+    checkAndMergeLines,
   } = useDrawing()
 
   // State for panning
@@ -68,6 +76,19 @@ export const Canvas: React.FC = () => {
       initializedRef.current = true
     }
   }, [view.offset.x, view.offset.y, setView])
+
+  // Keyboard shortcuts for deletion
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && activeShapeId) {
+        // Prevent backspace from navigating back
+        if (e.key === 'Backspace') e.preventDefault()
+        removeShape(activeShapeId)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [activeShapeId, removeShape])
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault()
@@ -116,8 +137,11 @@ export const Canvas: React.FC = () => {
       return
     }
 
-    // Handle Select Tool
-    if (tool === 'select') {
+    // Handle Select Tool or Right Click (Context Menu)
+    if (
+      tool === 'select' ||
+      ('button' in e && (e as React.MouseEvent).button === 2)
+    ) {
       // Check if clicked on a shape
       // We iterate in reverse to select top-most shape first
       let clickedShapeId: string | null = null
@@ -130,57 +154,69 @@ export const Canvas: React.FC = () => {
 
       if (clickedShapeId) {
         setActiveShapeId(clickedShapeId)
-        setIsMovingShape(true)
-        setMoveStartScreen(mousePos)
-        const shape = shapes.find((s) => s.id === clickedShapeId)
-        if (shape) {
-          setOriginalShapePoints([...shape.points])
+        // Only start moving if left click
+        if (!('button' in e) || (e as React.MouseEvent).button === 0) {
+          setIsMovingShape(true)
+          setMoveStartScreen(mousePos)
+          const shape = shapes.find((s) => s.id === clickedShapeId)
+          if (shape) {
+            setOriginalShapePoints([...shape.points])
+          }
         }
       } else {
-        setActiveShapeId(null)
+        // Only deselect if left click on empty space
+        if (!('button' in e) || (e as React.MouseEvent).button === 0) {
+          setActiveShapeId(null)
+        }
       }
       return
     }
 
-    // Handle Drawing Tools
-    if (tool === 'line') {
-      // Use snapped point if available, otherwise raw world pos
-      const startPoint = snapPoint ? snapPoint.point : worldPos
+    // Handle Drawing Tools (Left click only)
+    if (
+      tool !== 'select' &&
+      tool !== 'pan' &&
+      (!('button' in e) || (e as React.MouseEvent).button === 0)
+    ) {
+      if (tool === 'line') {
+        // Use snapped point if available, otherwise raw world pos
+        const startPoint = snapPoint ? snapPoint.point : worldPos
 
-      if (polyPoints.length === 0) {
-        setPolyPoints([startPoint])
-        setDrawingStart(startPoint)
-        setModalPosition(mousePos)
-        setShowMeasureModal(true)
-      } else {
-        const firstPoint = polyPoints[0]
-        const distToStart = calculateLineLength(startPoint, firstPoint)
-        const thresholdMeters = 8 / view.scale
-
-        // Close polygon if near start
-        if (polyPoints.length >= 3 && distToStart < thresholdMeters) {
-          const newShape: Shape = {
-            id: generateId(),
-            type: 'polygon',
-            points: [...polyPoints],
-          }
-          addShape(newShape)
-          setPolyPoints([])
-          setDrawingStart(null)
-          setShowMeasureModal(false)
-        } else {
-          // Continue line
-          setPolyPoints([...polyPoints, startPoint])
+        if (polyPoints.length === 0) {
+          setPolyPoints([startPoint])
           setDrawingStart(startPoint)
           setModalPosition(mousePos)
           setShowMeasureModal(true)
+        } else {
+          const firstPoint = polyPoints[0]
+          const distToStart = calculateLineLength(startPoint, firstPoint)
+          const thresholdMeters = 8 / view.scale
 
-          const newShape: Shape = {
-            id: generateId(),
-            type: 'line',
-            points: [polyPoints[polyPoints.length - 1], startPoint],
+          // Close polygon if near start
+          if (polyPoints.length >= 3 && distToStart < thresholdMeters) {
+            const newShape: Shape = {
+              id: generateId(),
+              type: 'polygon',
+              points: [...polyPoints],
+            }
+            addShape(newShape)
+            setPolyPoints([])
+            setDrawingStart(null)
+            setShowMeasureModal(false)
+          } else {
+            // Continue line
+            setPolyPoints([...polyPoints, startPoint])
+            setDrawingStart(startPoint)
+            setModalPosition(mousePos)
+            setShowMeasureModal(true)
+
+            const newShape: Shape = {
+              id: generateId(),
+              type: 'line',
+              points: [polyPoints[polyPoints.length - 1], startPoint],
+            }
+            addShape(newShape)
           }
-          addShape(newShape)
         }
       }
     }
@@ -291,6 +327,11 @@ export const Canvas: React.FC = () => {
   const handleMouseUp = () => {
     setIsPanning(false)
     setPanStart(null)
+
+    if (isMovingShape) {
+      // Check if we formed a polygon by connecting lines
+      checkAndMergeLines()
+    }
 
     setIsMovingShape(false)
     setMoveStartScreen(null)
@@ -462,93 +503,109 @@ export const Canvas: React.FC = () => {
   }
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-white select-none touch-none">
-      <div
-        ref={containerRef}
-        className={cn('w-full h-full cursor-crosshair', {
-          'cursor-grab': tool === 'pan' && !isPanning,
-          'cursor-grabbing': tool === 'pan' && isPanning,
-          'cursor-move':
-            tool === 'select' &&
-            activeShapeId &&
-            currentMousePos &&
-            shapes.find((s) => s.id === activeShapeId) &&
-            isPointInShape(
-              currentMousePos,
-              shapes.find((s) => s.id === activeShapeId)!,
-              view,
-            ),
-          'cursor-default': tool === 'select' && !activeShapeId,
-        })}
-        onWheel={handleWheel}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onTouchStart={handleMouseDown}
-        onTouchMove={handleMouseMove}
-        onTouchEnd={handleMouseUp}
-        onContextMenu={(e) => e.preventDefault()}
-      >
-        <svg
-          width="100%"
-          height="100%"
-          className="absolute inset-0 pointer-events-none"
+    <ContextMenu>
+      <ContextMenuTrigger className="w-full h-full block">
+        <div className="relative w-full h-full overflow-hidden bg-white select-none touch-none">
+          <div
+            ref={containerRef}
+            className={cn('w-full h-full cursor-crosshair', {
+              'cursor-grab': tool === 'pan' && !isPanning,
+              'cursor-grabbing': tool === 'pan' && isPanning,
+              'cursor-move':
+                tool === 'select' &&
+                activeShapeId &&
+                currentMousePos &&
+                shapes.find((s) => s.id === activeShapeId) &&
+                isPointInShape(
+                  currentMousePos,
+                  shapes.find((s) => s.id === activeShapeId)!,
+                  view,
+                ),
+              'cursor-default': tool === 'select' && !activeShapeId,
+            })}
+            onWheel={handleWheel}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onTouchStart={handleMouseDown}
+            onTouchMove={handleMouseMove}
+            onTouchEnd={handleMouseUp}
+            onContextMenu={(e) => {
+              // Prevent default context menu, but allow our custom one
+              // e.preventDefault() is handled by ContextMenuTrigger usually,
+              // but we might need to ensure selection happens first in handleMouseDown
+            }}
+          >
+            <svg
+              width="100%"
+              height="100%"
+              className="absolute inset-0 pointer-events-none"
+            >
+              {renderGrid()}
+
+              {shapes.map((shape) => (
+                <ShapeRenderer
+                  key={shape.id}
+                  shape={shape}
+                  view={view}
+                  isSelected={activeShapeId === shape.id}
+                />
+              ))}
+
+              {renderPreview()}
+
+              {snapPoint && (
+                <circle
+                  cx={snapPoint.targetPoint.x}
+                  cy={snapPoint.targetPoint.y}
+                  r={8}
+                  fill="none"
+                  stroke="#dc3545"
+                  strokeWidth={2}
+                  className="animate-ping"
+                />
+              )}
+              {snapPoint && (
+                <circle
+                  cx={snapPoint.targetPoint.x}
+                  cy={snapPoint.targetPoint.y}
+                  r={4}
+                  fill="#dc3545"
+                />
+              )}
+            </svg>
+          </div>
+
+          {showMeasureModal && drawingStart && currentMousePos && (
+            <MeasureModal
+              position={modalPosition}
+              onConfirm={handleModalConfirm}
+              onCancel={handleModalCancel}
+              initialLength={calculateLineLength(
+                drawingStart,
+                screenToWorld(currentMousePos, view),
+              )}
+              initialAngle={calculateAngle(
+                drawingStart,
+                screenToWorld(currentMousePos, view),
+              )}
+            />
+          )}
+
+          <div className="absolute bottom-4 right-4 bg-white/90 p-2 rounded shadow text-xs font-mono pointer-events-none">
+            Scale: 1m = {view.scale.toFixed(0)}px
+          </div>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem
+          disabled={!activeShapeId}
+          onClick={() => activeShapeId && removeShape(activeShapeId)}
         >
-          {renderGrid()}
-
-          {shapes.map((shape) => (
-            <ShapeRenderer
-              key={shape.id}
-              shape={shape}
-              view={view}
-              isSelected={activeShapeId === shape.id}
-            />
-          ))}
-
-          {renderPreview()}
-
-          {snapPoint && (
-            <circle
-              cx={snapPoint.targetPoint.x}
-              cy={snapPoint.targetPoint.y}
-              r={8}
-              fill="none"
-              stroke="#dc3545"
-              strokeWidth={2}
-              className="animate-ping"
-            />
-          )}
-          {snapPoint && (
-            <circle
-              cx={snapPoint.targetPoint.x}
-              cy={snapPoint.targetPoint.y}
-              r={4}
-              fill="#dc3545"
-            />
-          )}
-        </svg>
-      </div>
-
-      {showMeasureModal && drawingStart && currentMousePos && (
-        <MeasureModal
-          position={modalPosition}
-          onConfirm={handleModalConfirm}
-          onCancel={handleModalCancel}
-          initialLength={calculateLineLength(
-            drawingStart,
-            screenToWorld(currentMousePos, view),
-          )}
-          initialAngle={calculateAngle(
-            drawingStart,
-            screenToWorld(currentMousePos, view),
-          )}
-        />
-      )}
-
-      <div className="absolute bottom-4 right-4 bg-white/90 p-2 rounded shadow text-xs font-mono">
-        Scale: 1m = {view.scale.toFixed(0)}px
-      </div>
-    </div>
+          Excluir Linha
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
