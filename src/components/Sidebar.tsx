@@ -18,6 +18,8 @@ import {
   Square,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { calculatePolygonArea, calculateBoundingBox } from '@/lib/geometry'
+import { Shape, ViewState } from '@/types/drawing'
 
 export const Sidebar: React.FC = () => {
   const {
@@ -33,6 +35,7 @@ export const Sidebar: React.FC = () => {
     drawingStart,
     setDrawingStart,
     addRectangle,
+    shapes,
   } = useDrawing()
 
   const fileInputRef = React.useRef<HTMLInputElement>(null)
@@ -55,12 +58,74 @@ export const Sidebar: React.FC = () => {
     }))
   }
 
+  const generateReportSVG = (
+    currentShapes: Shape[],
+    currentView: ViewState,
+    svgWidth: number,
+    svgHeight: number,
+  ) => {
+    const slabs = currentShapes.filter(
+      (s) => s.type === 'rectangle' || s.type === 'polygon',
+    )
+    if (slabs.length === 0) return ''
+
+    const rowHeight = 20
+    const tableWidth = 300
+    const padding = 10
+    const headerHeight = 30
+    const totalHeight = headerHeight + slabs.length * rowHeight + padding * 2
+
+    // Position in bottom-right corner
+    const x = svgWidth - tableWidth - 20
+    const y = svgHeight - totalHeight - 20
+
+    let svgContent = `
+      <g transform="translate(${x}, ${y})">
+        <rect width="${tableWidth}" height="${totalHeight}" fill="white" stroke="#e2e8f0" rx="4" />
+        <text x="${padding}" y="${20}" font-family="Inter, sans-serif" font-size="14" font-weight="bold" fill="#0f172a">Relatório de Lajes</text>
+        <line x1="0" y1="${headerHeight}" x2="${tableWidth}" y2="${headerHeight}" stroke="#e2e8f0" />
+    `
+
+    slabs.forEach((slab, index) => {
+      const area = slab.properties?.area || calculatePolygonArea(slab.points)
+      const label = slab.properties?.label || `Laje ${index + 1}`
+      const type = slab.properties?.slabConfig?.type || '-'
+      const material =
+        slab.properties?.slabConfig?.material === 'ceramic'
+          ? 'Cerâmica'
+          : slab.properties?.slabConfig?.material === 'eps'
+            ? 'EPS'
+            : '-'
+
+      const yPos = headerHeight + (index + 1) * rowHeight - 5
+
+      svgContent += `
+        <text x="${padding}" y="${yPos}" font-family="Inter, sans-serif" font-size="12" fill="#334155">${label}</text>
+        <text x="${100}" y="${yPos}" font-family="Inter, sans-serif" font-size="12" fill="#334155">${area.toFixed(2)}m²</text>
+        <text x="${180}" y="${yPos}" font-family="Inter, sans-serif" font-size="12" fill="#334155">${type} ${material}</text>
+      `
+    })
+
+    svgContent += `</g>`
+    return svgContent
+  }
+
   const handleExportJPG = () => {
-    const svg = document.querySelector('svg')
+    const svg = document.querySelector('#canvas-container svg') as SVGSVGElement
     if (!svg) return
 
     const serializer = new XMLSerializer()
-    const source = serializer.serializeToString(svg)
+    let source = serializer.serializeToString(svg)
+
+    // Inject Report
+    const reportSVG = generateReportSVG(
+      shapes,
+      view,
+      svg.clientWidth,
+      svg.clientHeight,
+    )
+    source = source.replace('</svg>', `${reportSVG}</svg>`)
+
     const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' })
     const url = URL.createObjectURL(blob)
 
@@ -87,8 +152,49 @@ export const Sidebar: React.FC = () => {
   }
 
   const handleExportPDF = () => {
-    window.print()
-    toast.info('Selecione "Salvar como PDF" na janela de impressão.')
+    const svg = document.querySelector('#canvas-container svg') as SVGSVGElement
+    if (!svg) return
+
+    const serializer = new XMLSerializer()
+    let source = serializer.serializeToString(svg)
+
+    // Inject Report
+    const reportSVG = generateReportSVG(
+      shapes,
+      view,
+      svg.clientWidth,
+      svg.clientHeight,
+    )
+    source = source.replace('</svg>', `${reportSVG}</svg>`)
+
+    // Open new window for printing
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Planta - ProjeLAJE</title>
+            <style>
+              @page { size: landscape; margin: 0; }
+              body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
+              svg { width: 100%; height: 100%; max-height: 100vh; }
+            </style>
+          </head>
+          <body>
+            ${source}
+            <script>
+              window.onload = () => {
+                window.print();
+                window.onafterprint = () => window.close();
+              }
+            </script>
+          </body>
+        </html>
+      `)
+      printWindow.document.close()
+    } else {
+      toast.error('Permita popups para exportar PDF.')
+    }
   }
 
   const handleClearAll = () => {

@@ -109,49 +109,56 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
     reader.readAsText(file)
   }, [])
 
+  const getNextSlabLabel = (currentShapes: Shape[]) => {
+    const slabs = currentShapes.filter(
+      (s) => s.type === 'rectangle' || s.type === 'polygon',
+    )
+    const existingNumbers = slabs.map((s) => {
+      const match = s.properties?.label?.match(/^L(\d+)$/)
+      return match ? parseInt(match[1], 10) : 0
+    })
+    const nextNumber =
+      existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1
+    return `L${nextNumber}`
+  }
+
   const checkAndMergeLines = useCallback(() => {
     const lines = shapes.filter((s) => s.type === 'line')
     const cycle = findClosedCycle(lines)
 
     if (cycle) {
-      const newPolygon: Shape = {
-        id: generateId(),
-        type: 'polygon',
-        points: cycle.points,
-        properties: {
-          area: calculatePolygonArea(cycle.points),
-        },
-      }
-
       setShapes((prev) => {
+        const label = getNextSlabLabel(prev)
+        const newPolygon: Shape = {
+          id: generateId(),
+          type: 'polygon',
+          points: cycle.points,
+          properties: {
+            area: calculatePolygonArea(cycle.points),
+            label: label,
+          },
+        }
         const remaining = prev.filter((s) => !cycle.lineIds.includes(s.id))
+        // We need to set active shape ID here, but we can't do it inside setShapes
+        // So we'll do it in a useEffect or just rely on the fact that we return true
+        // and the caller might handle it, but setActiveShapeId is available in scope.
+        setTimeout(() => setActiveShapeId(newPolygon.id), 0)
         return [...remaining, newPolygon]
       })
 
-      setActiveShapeId(newPolygon.id)
       return true
     }
     return false
   }, [shapes])
 
-  const addRectangle = useCallback(
-    (start: Point, end: Point) => {
-      const width = Math.abs(end.x - start.x)
-      const height = Math.abs(end.y - start.y)
+  const addRectangle = useCallback((start: Point, end: Point) => {
+    const width = Math.abs(end.x - start.x)
+    const height = Math.abs(end.y - start.y)
 
-      // Allow smaller shapes (1cm) when adding programmatically or via manual input
-      if (width >= 0.01 && height >= 0.01) {
-        // Generate Label
-        const slabs = shapes.filter(
-          (s) => s.type === 'rectangle' || s.type === 'polygon',
-        )
-        const existingNumbers = slabs.map((s) => {
-          const match = s.properties?.label?.match(/^L(\d+)$/)
-          return match ? parseInt(match[1], 10) : 0
-        })
-        const nextNumber =
-          existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1
-
+    // Allow smaller shapes (1cm) when adding programmatically or via manual input
+    if (width >= 0.01 && height >= 0.01) {
+      setShapes((prev) => {
+        const label = getNextSlabLabel(prev)
         const newShape: Shape = {
           id: generateId(),
           type: 'rectangle',
@@ -164,17 +171,16 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
           properties: {
             width,
             height,
-            label: `L${nextNumber}`,
+            label,
             area: width * height,
           },
         }
-        addShape(newShape)
-        return true
-      }
-      return false
-    },
-    [shapes, addShape],
-  )
+        return [...prev, newShape]
+      })
+      return true
+    }
+    return false
+  }, [])
 
   return (
     <DrawingContext.Provider

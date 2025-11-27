@@ -204,6 +204,7 @@ export const Canvas: React.FC = () => {
           const thresholdMeters = 8 / view.scale
 
           if (polyPoints.length >= 3 && distToStart < thresholdMeters) {
+            // Closing the polygon manually
             const newShape: Shape = {
               id: generateId(),
               type: 'polygon',
@@ -438,6 +439,9 @@ export const Canvas: React.FC = () => {
       id: generateId(),
       type: 'line',
       points: [drawingStart, endPoint],
+      properties: {
+        length: length, // Store the exact input length
+      },
     }
     addShape(newShape)
 

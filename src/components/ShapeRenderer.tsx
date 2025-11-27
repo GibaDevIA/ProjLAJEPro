@@ -6,6 +6,7 @@ import {
   calculateLineLength,
   generateBeamLines,
 } from '@/lib/geometry'
+import { formatDimension } from '@/lib/utils'
 
 interface ShapeRendererProps {
   shape: Shape
@@ -81,7 +82,10 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
     if (shape.type === 'line') {
       const p1 = screenPoints[0]
       const p2 = screenPoints[1]
-      const length = calculateLineLength(shape.points[0], shape.points[1])
+      // Use stored length if available (from manual input), otherwise calculate
+      const length =
+        shape.properties?.length ??
+        calculateLineLength(shape.points[0], shape.points[1])
       const midX = (p1.x + p2.x) / 2
       const midY = (p1.y + p2.y) / 2
 
@@ -118,7 +122,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
               fill="#1f2937"
               style={{ fontSize: '10px', fontFamily: 'Inter' }}
             >
-              {length.toFixed(2)} m
+              {formatDimension(length)} m
             </text>
           </g>
         </g>
@@ -165,7 +169,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
               fill="#1f2937"
               style={{ fontSize: '10px', fontFamily: 'Inter' }}
             >
-              {shape.properties.width.toFixed(1)}m
+              {formatDimension(shape.properties.width)}m
             </text>
             <text
               x={rightMid.x}
@@ -175,7 +179,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
               fill="#1f2937"
               style={{ fontSize: '10px', fontFamily: 'Inter' }}
             >
-              {shape.properties.height.toFixed(1)}m
+              {formatDimension(shape.properties.height)}m
             </text>
           </>
         )
