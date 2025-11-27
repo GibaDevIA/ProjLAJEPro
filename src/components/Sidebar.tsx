@@ -25,7 +25,7 @@ import { toast } from 'sonner'
 import {
   calculatePolygonArea,
   isWorldPointInShape,
-  getSlabJoistCount,
+  calculateVigotaLengths,
 } from '@/lib/geometry'
 import { Shape, ViewState } from '@/types/drawing'
 
@@ -88,26 +88,8 @@ export const Sidebar: React.FC = () => {
       return acc + area
     }, 0)
 
-    const rowHeight = 20
-    const tableWidth = 300
-    const padding = 10
-    const headerHeight = 30
-    const footerHeight = 30 // Space for Total
-    const totalHeight =
-      headerHeight + slabs.length * rowHeight + footerHeight + padding * 2
-
-    // Position in bottom-right corner
-    const x = svgWidth - tableWidth - 20
-    const y = svgHeight - totalHeight - 20
-
-    let svgContent = `
-        <g transform="translate(${x}, ${y})">
-          <rect width="${tableWidth}" height="${totalHeight}" fill="white" stroke="#e2e8f0" rx="4" />
-          <text x="${padding}" y="${20}" font-family="Inter, sans-serif" font-size="14" font-weight="bold" fill="#0f172a">Relatório de Lajes</text>
-          <line x1="0" y1="${headerHeight}" x2="${tableWidth}" y2="${headerHeight}" stroke="#e2e8f0" />
-      `
-
-    slabs.forEach((slab, index) => {
+    // Prepare data for the report
+    const reportData = slabs.map((slab, index) => {
       const area = slab.properties?.area || calculatePolygonArea(slab.points)
       const label = slab.properties?.label || `Laje ${index + 1}`
       const type = slab.properties?.slabConfig?.type || '-'
@@ -132,28 +114,108 @@ export const Sidebar: React.FC = () => {
           ),
       )
 
-      let beamCount = 0
+      let vigotaSummary = ''
+      let vigotaCount = 0
+
       if (joistArrow && slab.properties?.slabConfig) {
-        beamCount = getSlabJoistCount(slab, joistArrow)
+        const lengths = calculateVigotaLengths(slab, joistArrow)
+        vigotaCount = lengths.length
+
+        // Round up to nearest whole number (integer)
+        const roundedLengths = lengths.map((l) => Math.ceil(l))
+
+        // Group lengths
+        const groups: Record<number, number> = {}
+        roundedLengths.forEach((l) => {
+          groups[l] = (groups[l] || 0) + 1
+        })
+
+        // Format summary
+        const sortedLengths = Object.keys(groups)
+          .map(Number)
+          .sort((a, b) => b - a) // Descending order
+        vigotaSummary = sortedLengths
+          .map((len) => `${groups[len]}x ${len}m`)
+          .join(', ')
       }
 
-      const displayLabel = beamCount > 0 ? `${label} (${beamCount}vt)` : label
+      return {
+        label,
+        area,
+        type,
+        material,
+        vigotaCount,
+        vigotaSummary,
+      }
+    })
 
-      const yPos = headerHeight + (index + 1) * rowHeight - 5
+    const tableWidth = 350
+    const padding = 15
+    const lineHeight = 18
+    const headerHeight = 30
+    const footerHeight = 30
+    const rowSpacing = 10
 
+    // Calculate total height dynamically
+    let contentHeight = headerHeight
+    reportData.forEach((data) => {
+      contentHeight += lineHeight // First line (Label, Area, Type)
+      if (data.vigotaSummary) {
+        contentHeight += lineHeight // Second line (Vigotas)
+      }
+      contentHeight += rowSpacing
+    })
+    contentHeight += footerHeight + padding * 2
+
+    // Position in bottom-right corner
+    const x = svgWidth - tableWidth - 20
+    const y = svgHeight - contentHeight - 20
+
+    let svgContent = `
+        <g transform="translate(${x}, ${y})">
+          <rect width="${tableWidth}" height="${contentHeight}" fill="white" stroke="#e2e8f0" rx="4" />
+          <text x="${padding}" y="${20}" font-family="Inter, sans-serif" font-size="14" font-weight="bold" fill="#0f172a">Relatório de Lajes</text>
+          <line x1="0" y1="${headerHeight}" x2="${tableWidth}" y2="${headerHeight}" stroke="#e2e8f0" />
+      `
+
+    let currentY = headerHeight + 15
+
+    reportData.forEach((data) => {
+      const displayLabel =
+        data.vigotaCount > 0
+          ? `${data.label} (${data.vigotaCount}vt)`
+          : data.label
+
+      // Row 1: Label | Area | Type
       svgContent += `
-          <text x="${padding}" y="${yPos}" font-family="Inter, sans-serif" font-size="12" fill="#334155">${displayLabel}</text>
-          <text x="${100}" y="${yPos}" font-family="Inter, sans-serif" font-size="12" fill="#334155">${area.toFixed(2)}m²</text>
-          <text x="${180}" y="${yPos}" font-family="Inter, sans-serif" font-size="12" fill="#334155">${type} ${material}</text>
+          <text x="${padding}" y="${currentY}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#334155">${displayLabel}</text>
+          <text x="${120}" y="${currentY}" font-family="Inter, sans-serif" font-size="12" fill="#334155">${data.area.toFixed(2)}m²</text>
+          <text x="${200}" y="${currentY}" font-family="Inter, sans-serif" font-size="12" fill="#334155">${data.type} ${data.material}</text>
         `
+      currentY += lineHeight
+
+      // Row 2: Vigotas details
+      if (data.vigotaSummary) {
+        svgContent += `
+            <text x="${padding}" y="${currentY}" font-family="Inter, sans-serif" font-size="11" fill="#64748b">Vigotas: ${data.vigotaSummary}</text>
+          `
+        currentY += lineHeight
+      } else {
+        // Optional: Placeholder if no vigotas defined
+        // svgContent += `<text x="${padding}" y="${currentY}" font-family="Inter, sans-serif" font-size="11" fill="#94a3b8" font-style="italic">Sem vigotas definidas</text>`
+        // currentY += lineHeight;
+      }
+
+      // Separator line (optional, or just spacing)
+      currentY += rowSpacing
     })
 
     // Add Total Section
-    const totalYPos = headerHeight + slabs.length * rowHeight + 20
+    const totalYPos = contentHeight - padding
     svgContent += `
-          <line x1="0" y1="${headerHeight + slabs.length * rowHeight + 5}" x2="${tableWidth}" y2="${headerHeight + slabs.length * rowHeight + 5}" stroke="#e2e8f0" />
+          <line x1="0" y1="${totalYPos - 25}" x2="${tableWidth}" y2="${totalYPos - 25}" stroke="#e2e8f0" />
           <text x="${padding}" y="${totalYPos}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Total Geral</text>
-          <text x="${100}" y="${totalYPos}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">${totalArea.toFixed(2)}m²</text>
+          <text x="${120}" y="${totalYPos}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">${totalArea.toFixed(2)}m²</text>
       `
 
     svgContent += `</g>`

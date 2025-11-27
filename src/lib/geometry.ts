@@ -407,3 +407,18 @@ export function generateBeamLines(
 
   return lines
 }
+
+export function calculateVigotaLengths(
+  slab: Shape,
+  joistArrow: Shape,
+): number[] {
+  if (!slab.properties?.slabConfig) return []
+  const interEixoMeters = (slab.properties.slabConfig.interEixo || 42) / 100
+  const lines = generateBeamLines(
+    slab.points,
+    joistArrow.points[0],
+    joistArrow.points[1],
+    interEixoMeters,
+  )
+  return lines.map((l) => calculateLineLength(l[0], l[1]))
+}
