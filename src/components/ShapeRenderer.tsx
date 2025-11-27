@@ -5,6 +5,7 @@ import {
   calculatePolygonArea,
   calculateLineLength,
   generateBeamLines,
+  getSlabJoistCount,
 } from '@/lib/geometry'
 import { formatDimension } from '@/lib/utils'
 
@@ -34,6 +35,16 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
         )
       }
       return []
+    }, [shape, joistArrow])
+
+    const joistCount = useMemo(() => {
+      if (
+        (shape.type === 'rectangle' || shape.type === 'polygon') &&
+        joistArrow
+      ) {
+        return getSlabJoistCount(shape, joistArrow)
+      }
+      return 0
     }, [shape, joistArrow])
 
     if (shape.type === 'arrow') {
@@ -222,9 +233,9 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
 
           <g transform={`translate(${centroid.x}, ${centroid.y})`}>
             <rect
-              x="-30"
+              x="-40"
               y="-10"
-              width="60"
+              width="80"
               height="20"
               rx="2"
               fill="white"
@@ -239,6 +250,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
               style={{ fontSize: '10px', fontFamily: 'Inter' }}
             >
               {shape.properties?.label || `Laje`} ({area.toFixed(2)} m²)
+              {joistCount > 0 ? ` (${joistCount}vt)` : ''}
             </text>
           </g>
           {dimensions}

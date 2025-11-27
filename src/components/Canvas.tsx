@@ -8,6 +8,7 @@ import {
   calculateAngle,
   getPointFromLengthAndAngle,
   isPointInShape,
+  isWorldPointInShape,
 } from '@/lib/geometry'
 import { Point, Shape, SlabConfig } from '@/types/drawing'
 import { ShapeRenderer } from './ShapeRenderer'
@@ -727,13 +728,12 @@ export const Canvas: React.FC = () => {
                     (s) =>
                       s.type === 'arrow' &&
                       s.properties?.isJoist &&
-                      isPointInShape(
+                      isWorldPointInShape(
                         {
                           x: (s.points[0].x + s.points[1].x) / 2,
                           y: (s.points[0].y + s.points[1].y) / 2,
                         },
                         shape,
-                        view,
                       ),
                   )
                 }

@@ -5,12 +5,12 @@ import { Separator } from '@/components/ui/separator'
 import {
   calculatePolygonArea,
   calculateBoundingBox,
-  isPointInShape,
-  getProjectedLength,
+  isWorldPointInShape,
+  getSlabJoistCount,
 } from '@/lib/geometry'
 
 export const MaterialsPanel: React.FC = () => {
-  const { shapes, view } = useDrawing()
+  const { shapes } = useDrawing()
 
   // Filter for slabs (rectangles and polygons)
   const slabs = shapes.filter(
@@ -51,35 +51,27 @@ export const MaterialsPanel: React.FC = () => {
               (s) =>
                 s.type === 'arrow' &&
                 s.properties?.isJoist &&
-                isPointInShape(
+                isWorldPointInShape(
                   {
                     x: (s.points[0].x + s.points[1].x) / 2,
                     y: (s.points[0].y + s.points[1].y) / 2,
                   },
                   slab,
-                  view,
                 ),
             )
 
             let beamCount = 0
             if (joistArrow && slab.properties?.slabConfig) {
-              const interEixoMeters = slab.properties.slabConfig.interEixo / 100
-              // Calculate length perpendicular to beam direction
-              const arrowVec = {
-                x: joistArrow.points[1].x - joistArrow.points[0].x,
-                y: joistArrow.points[1].y - joistArrow.points[0].y,
-              }
-              // Perpendicular vector
-              const perpVec = { x: -arrowVec.y, y: arrowVec.x }
-
-              const projectedLen = getProjectedLength(slab.points, perpVec)
-              beamCount = Math.ceil(projectedLen / interEixoMeters)
+              beamCount = getSlabJoistCount(slab, joistArrow)
             }
 
             return (
               <div key={slab.id} className="text-sm">
                 <div className="font-medium flex items-center justify-between">
-                  <span>{slab.properties?.label || `Laje ${index + 1}`}</span>
+                  <span>
+                    {slab.properties?.label || `Laje ${index + 1}`}
+                    {beamCount > 0 ? ` (${beamCount}vt)` : ''}
+                  </span>
                   <span className="text-xs text-muted-foreground uppercase">
                     {slab.type === 'rectangle' ? 'Retangular' : 'Poligonal'}
                   </span>

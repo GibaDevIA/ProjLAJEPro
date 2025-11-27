@@ -22,7 +22,11 @@ import {
   ArrowRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { calculatePolygonArea } from '@/lib/geometry'
+import {
+  calculatePolygonArea,
+  isWorldPointInShape,
+  getSlabJoistCount,
+} from '@/lib/geometry'
 import { Shape, ViewState } from '@/types/drawing'
 
 export const Sidebar: React.FC = () => {
@@ -97,11 +101,11 @@ export const Sidebar: React.FC = () => {
     const y = svgHeight - totalHeight - 20
 
     let svgContent = `
-      <g transform="translate(${x}, ${y})">
-        <rect width="${tableWidth}" height="${totalHeight}" fill="white" stroke="#e2e8f0" rx="4" />
-        <text x="${padding}" y="${20}" font-family="Inter, sans-serif" font-size="14" font-weight="bold" fill="#0f172a">Relatório de Lajes</text>
-        <line x1="0" y1="${headerHeight}" x2="${tableWidth}" y2="${headerHeight}" stroke="#e2e8f0" />
-    `
+        <g transform="translate(${x}, ${y})">
+          <rect width="${tableWidth}" height="${totalHeight}" fill="white" stroke="#e2e8f0" rx="4" />
+          <text x="${padding}" y="${20}" font-family="Inter, sans-serif" font-size="14" font-weight="bold" fill="#0f172a">Relatório de Lajes</text>
+          <line x1="0" y1="${headerHeight}" x2="${tableWidth}" y2="${headerHeight}" stroke="#e2e8f0" />
+      `
 
     slabs.forEach((slab, index) => {
       const area = slab.properties?.area || calculatePolygonArea(slab.points)
@@ -114,22 +118,43 @@ export const Sidebar: React.FC = () => {
             ? 'EPS'
             : '-'
 
+      // Find associated joist arrow
+      const joistArrow = currentShapes.find(
+        (s) =>
+          s.type === 'arrow' &&
+          s.properties?.isJoist &&
+          isWorldPointInShape(
+            {
+              x: (s.points[0].x + s.points[1].x) / 2,
+              y: (s.points[0].y + s.points[1].y) / 2,
+            },
+            slab,
+          ),
+      )
+
+      let beamCount = 0
+      if (joistArrow && slab.properties?.slabConfig) {
+        beamCount = getSlabJoistCount(slab, joistArrow)
+      }
+
+      const displayLabel = beamCount > 0 ? `${label} (${beamCount}vt)` : label
+
       const yPos = headerHeight + (index + 1) * rowHeight - 5
 
       svgContent += `
-        <text x="${padding}" y="${yPos}" font-family="Inter, sans-serif" font-size="12" fill="#334155">${label}</text>
-        <text x="${100}" y="${yPos}" font-family="Inter, sans-serif" font-size="12" fill="#334155">${area.toFixed(2)}m²</text>
-        <text x="${180}" y="${yPos}" font-family="Inter, sans-serif" font-size="12" fill="#334155">${type} ${material}</text>
-      `
+          <text x="${padding}" y="${yPos}" font-family="Inter, sans-serif" font-size="12" fill="#334155">${displayLabel}</text>
+          <text x="${100}" y="${yPos}" font-family="Inter, sans-serif" font-size="12" fill="#334155">${area.toFixed(2)}m²</text>
+          <text x="${180}" y="${yPos}" font-family="Inter, sans-serif" font-size="12" fill="#334155">${type} ${material}</text>
+        `
     })
 
     // Add Total Section
     const totalYPos = headerHeight + slabs.length * rowHeight + 20
     svgContent += `
-        <line x1="0" y1="${headerHeight + slabs.length * rowHeight + 5}" x2="${tableWidth}" y2="${headerHeight + slabs.length * rowHeight + 5}" stroke="#e2e8f0" />
-        <text x="${padding}" y="${totalYPos}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Total Geral</text>
-        <text x="${100}" y="${totalYPos}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">${totalArea.toFixed(2)}m²</text>
-    `
+          <line x1="0" y1="${headerHeight + slabs.length * rowHeight + 5}" x2="${tableWidth}" y2="${headerHeight + slabs.length * rowHeight + 5}" stroke="#e2e8f0" />
+          <text x="${padding}" y="${totalYPos}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Total Geral</text>
+          <text x="${100}" y="${totalYPos}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">${totalArea.toFixed(2)}m²</text>
+      `
 
     svgContent += `</g>`
     return svgContent
@@ -196,26 +221,26 @@ export const Sidebar: React.FC = () => {
     const printWindow = window.open('', '_blank')
     if (printWindow) {
       printWindow.document.write(`
-        <html>
-          <head>
-            <title>Planta - ProjeLAJE</title>
-            <style>
-              @page { size: landscape; margin: 0; }
-              body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
-              svg { width: 100%; height: 100%; max-height: 100vh; }
-            </style>
-          </head>
-          <body>
-            ${source}
-            <script>
-              window.onload = () => {
-                window.print();
-                window.onafterprint = () => window.close();
-              }
-            </script>
-          </body>
-        </html>
-      `)
+          <html>
+            <head>
+              <title>Planta - ProjeLAJE</title>
+              <style>
+                @page { size: landscape; margin: 0; }
+                body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
+                svg { width: 100%; height: 100%; max-height: 100vh; }
+              </style>
+            </head>
+            <body>
+              ${source}
+              <script>
+                window.onload = () => {
+                  window.print();
+                  window.onafterprint = () => window.close();
+                }
+              </script>
+            </body>
+          </html>
+        `)
       printWindow.document.close()
     } else {
       toast.error('Permita popups para exportar PDF.')

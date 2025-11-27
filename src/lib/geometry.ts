@@ -87,6 +87,13 @@ export function isPointInShape(
   }
 }
 
+export function isWorldPointInShape(point: Point, shape: Shape): boolean {
+  if (shape.type === 'rectangle' || shape.type === 'polygon') {
+    return isPointInPolygon(point, shape.points)
+  }
+  return false
+}
+
 export function getSnapPoint(
   cursorScreenPos: Point,
   shapes: Shape[],
@@ -283,6 +290,32 @@ export function getProjectedLength(points: Point[], vector: Point): number {
   return maxProj - minProj
 }
 
+export function calculateJoistCount(
+  transversalLength: number,
+  interAxis: number,
+): number {
+  if (interAxis <= 0) return 0
+  return Math.floor(transversalLength / interAxis) + 1
+}
+
+export function getSlabJoistCount(slab: Shape, joistArrow: Shape): number {
+  if (!slab.properties?.slabConfig) return 0
+
+  // Default 0.42m if not specified, or use configured value
+  const interEixoMeters = (slab.properties.slabConfig.interEixo || 42) / 100
+
+  const arrowVec = {
+    x: joistArrow.points[1].x - joistArrow.points[0].x,
+    y: joistArrow.points[1].y - joistArrow.points[0].y,
+  }
+  // Perpendicular vector
+  const perpVec = { x: -arrowVec.y, y: arrowVec.x }
+
+  const transversalLen = getProjectedLength(slab.points, perpVec)
+
+  return calculateJoistCount(transversalLen, interEixoMeters)
+}
+
 // Generate beam lines inside a polygon
 export function generateBeamLines(
   polygonPoints: Point[],
@@ -320,9 +353,6 @@ export function generateBeamLines(
   }
 
   // Generate lines starting from minProj to maxProj with spacing
-  // We center the beams or start from one side? Usually start from one side or center.
-  // Let's start from minProj + spacing/2 to center them roughly or just minProj.
-  // Let's start from minProj.
   const lines: Point[][] = []
 
   // Extend the range slightly to ensure coverage
@@ -330,32 +360,12 @@ export function generateBeamLines(
   const end = maxProj
 
   for (let d = start + spacing / 2; d <= end; d += spacing) {
-    // A point on this line is: d * (ax, ay) (relative to origin 0,0 if we projected simply)
-    // Actually, the line equation is: P dot A = d
-    // Where A is the normal to the beam line (which is the arrow direction).
-    // So the line is perpendicular to A at distance d from origin along A.
-
-    // We need to find the segment of this line inside the polygon.
-    // We can define the line as L(t) = (d*ax, d*ay) + t * (bx, by)
-    // We need to find t values where this line intersects polygon edges.
-
     const origin = { x: d * ax, y: d * ay }
     const intersections: number[] = []
 
     for (let i = 0; i < polygonPoints.length; i++) {
       const p1 = polygonPoints[i]
       const p2 = polygonPoints[(i + 1) % polygonPoints.length]
-
-      // Intersect line L(t) with segment p1-p2
-      // Segment: S(u) = p1 + u * (p2 - p1), 0 <= u <= 1
-      // L(t) = origin + t * beamDir
-      // origin + t*B = p1 + u*S
-      // t*B - u*S = p1 - origin
-      // Solve for t and u.
-      // Vector cross product approach is easier for 2D.
-      // p + t r = q + u s
-      // (p - q) x s = t (s x r) -> t = (q - p) x s / (r x s)
-      // (q - p) x r = u (r x s) -> u = (q - p) x r / (r x s)
 
       const sx = p2.x - p1.x
       const sy = p2.y - p1.y
