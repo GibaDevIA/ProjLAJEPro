@@ -28,6 +28,7 @@ export const RectangleMeasureModal: React.FC<RectangleMeasureModalProps> = ({
 }) => {
   const [width, setWidth] = useState(initialWidth.toFixed(2))
   const [height, setHeight] = useState(initialHeight.toFixed(2))
+  const [isDirty, setIsDirty] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -38,9 +39,11 @@ export const RectangleMeasureModal: React.FC<RectangleMeasureModalProps> = ({
   }, [])
 
   useEffect(() => {
-    setWidth(initialWidth.toFixed(2))
-    setHeight(initialHeight.toFixed(2))
-  }, [initialWidth, initialHeight])
+    if (!isDirty) {
+      setWidth(initialWidth.toFixed(2))
+      setHeight(initialHeight.toFixed(2))
+    }
+  }, [initialWidth, initialHeight, isDirty])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -48,6 +51,16 @@ export const RectangleMeasureModal: React.FC<RectangleMeasureModalProps> = ({
     const h = parseFloat(height)
     if (isNaN(w) || w <= 0 || isNaN(h) || h <= 0) return
     onConfirm(w, h)
+  }
+
+  const handleWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setWidth(e.target.value)
+    setIsDirty(true)
+  }
+
+  const handleHeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setHeight(e.target.value)
+    setIsDirty(true)
   }
 
   return (
@@ -77,7 +90,7 @@ export const RectangleMeasureModal: React.FC<RectangleMeasureModalProps> = ({
                 step="0.01"
                 min="0.01"
                 value={width}
-                onChange={(e) => setWidth(e.target.value)}
+                onChange={handleWidthChange}
                 className="h-8 text-sm"
               />
             </div>
@@ -91,7 +104,7 @@ export const RectangleMeasureModal: React.FC<RectangleMeasureModalProps> = ({
                 step="0.01"
                 min="0.01"
                 value={height}
-                onChange={(e) => setHeight(e.target.value)}
+                onChange={handleHeightChange}
                 className="h-8 text-sm"
               />
             </div>

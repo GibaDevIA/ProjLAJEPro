@@ -859,7 +859,7 @@ export const Canvas: React.FC = () => {
             />
           )}
 
-          {showRectModal && drawingStart && currentMousePos && (
+          {showRectModal && drawingStart && (
             <RectangleMeasureModal
               position={modalPosition}
               onConfirm={handleRectModalConfirm}
@@ -870,12 +870,16 @@ export const Canvas: React.FC = () => {
               initialWidth={Math.abs(
                 (snapPoint
                   ? snapPoint.point.x
-                  : screenToWorld(currentMousePos, view).x) - drawingStart.x,
+                  : currentMousePos
+                    ? screenToWorld(currentMousePos, view).x
+                    : drawingStart.x) - drawingStart.x,
               )}
               initialHeight={Math.abs(
                 (snapPoint
                   ? snapPoint.point.y
-                  : screenToWorld(currentMousePos, view).y) - drawingStart.y,
+                  : currentMousePos
+                    ? screenToWorld(currentMousePos, view).y
+                    : drawingStart.y) - drawingStart.y,
               )}
             />
           )}
