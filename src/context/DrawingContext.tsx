@@ -5,7 +5,7 @@ import React, {
   useCallback,
   ReactNode,
 } from 'react'
-import { Shape, ViewState, ToolType } from '@/types/drawing'
+import { Shape, ViewState, ToolType, Point } from '@/types/drawing'
 import { findClosedCycle, calculatePolygonArea } from '@/lib/geometry'
 import { generateId } from '@/lib/utils'
 
@@ -27,6 +27,9 @@ interface DrawingContextType {
   exportToJSON: () => void
   loadFromJSON: (file: File) => void
   checkAndMergeLines: () => boolean
+  drawingStart: Point | null
+  setDrawingStart: React.Dispatch<React.SetStateAction<Point | null>>
+  addRectangle: (start: Point, end: Point) => boolean
 }
 
 const DrawingContext = createContext<DrawingContextType | undefined>(undefined)
@@ -40,6 +43,7 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
   const [tool, setTool] = useState<ToolType>('select')
   const [activeShapeId, setActiveShapeId] = useState<string | null>(null)
   const [gridVisible, setGridVisible] = useState(true)
+  const [drawingStart, setDrawingStart] = useState<Point | null>(null)
 
   const addShape = useCallback((shape: Shape) => {
     setShapes((prev) => [...prev, shape])
@@ -130,6 +134,47 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
     return false
   }, [shapes])
 
+  const addRectangle = useCallback(
+    (start: Point, end: Point) => {
+      const width = Math.abs(end.x - start.x)
+      const height = Math.abs(end.y - start.y)
+
+      if (width > 0.1 && height > 0.1) {
+        // Generate Label
+        const slabs = shapes.filter(
+          (s) => s.type === 'rectangle' || s.type === 'polygon',
+        )
+        const existingNumbers = slabs.map((s) => {
+          const match = s.properties?.label?.match(/^L(\d+)$/)
+          return match ? parseInt(match[1], 10) : 0
+        })
+        const nextNumber =
+          existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1
+
+        const newShape: Shape = {
+          id: generateId(),
+          type: 'rectangle',
+          points: [
+            start,
+            { x: end.x, y: start.y },
+            end,
+            { x: start.x, y: end.y },
+          ],
+          properties: {
+            width,
+            height,
+            label: `L${nextNumber}`,
+            area: width * height,
+          },
+        }
+        addShape(newShape)
+        return true
+      }
+      return false
+    },
+    [shapes, addShape],
+  )
+
   return (
     <DrawingContext.Provider
       value={{
@@ -150,6 +195,9 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
         exportToJSON,
         loadFromJSON,
         checkAndMergeLines,
+        drawingStart,
+        setDrawingStart,
+        addRectangle,
       }}
     >
       {children}

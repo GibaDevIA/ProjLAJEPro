@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useDrawing } from '@/context/DrawingContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,9 +30,23 @@ export const Sidebar: React.FC = () => {
     exportToJSON,
     loadFromJSON,
     setShapes,
+    drawingStart,
+    setDrawingStart,
+    addRectangle,
   } = useDrawing()
 
   const fileInputRef = React.useRef<HTMLInputElement>(null)
+
+  // State for Rectangle Dimensions Panel
+  const [rectWidth, setRectWidth] = useState('0.00')
+  const [rectLength, setRectLength] = useState('0.00')
+
+  useEffect(() => {
+    if (tool === 'rectangle') {
+      setRectWidth('0.00')
+      setRectLength('0.00')
+    }
+  }, [tool])
 
   const handleZoom = (delta: number) => {
     setView((prev) => ({
@@ -84,6 +98,41 @@ export const Sidebar: React.FC = () => {
     }
   }
 
+  const handleConfirmRectangle = () => {
+    if (!drawingStart) {
+      toast.error('Clique na área de desenho para definir o ponto inicial.')
+      return
+    }
+
+    const w = parseFloat(rectWidth)
+    const h = parseFloat(rectLength)
+
+    if (isNaN(w) || w <= 0 || isNaN(h) || h <= 0) {
+      toast.error('Dimensões inválidas.')
+      return
+    }
+
+    // Create rectangle assuming positive direction from start point
+    const endPoint = {
+      x: drawingStart.x + w,
+      y: drawingStart.y + h,
+    }
+
+    const success = addRectangle(drawingStart, endPoint)
+    if (success) {
+      setDrawingStart(null)
+      setTool('select')
+      toast.success('Laje criada com sucesso.')
+    } else {
+      toast.error('Erro ao criar laje.')
+    }
+  }
+
+  const handleCancelRectangle = () => {
+    setDrawingStart(null)
+    setTool('select')
+  }
+
   return (
     <ScrollArea className="h-full w-full bg-white border-r border-border no-print">
       <div className="p-4 space-y-6">
@@ -110,6 +159,59 @@ export const Sidebar: React.FC = () => {
             Lançar Vigota
           </Button>
         </div>
+
+        {tool === 'rectangle' && (
+          <div className="p-4 border rounded-md bg-gray-50 space-y-4 animate-fade-in">
+            <h3 className="font-medium text-sm">Definir Dimensões</h3>
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <Label htmlFor="rect-width" className="text-xs">
+                  Largura (m)
+                </Label>
+                <Input
+                  id="rect-width"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={rectWidth}
+                  onChange={(e) => setRectWidth(e.target.value)}
+                  className="h-8 text-sm bg-white"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="rect-length" className="text-xs">
+                  Comprimento (m)
+                </Label>
+                <Input
+                  id="rect-length"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={rectLength}
+                  onChange={(e) => setRectLength(e.target.value)}
+                  className="h-8 text-sm bg-white"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 h-8 text-xs"
+                onClick={handleCancelRectangle}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1 h-8 text-xs"
+                onClick={handleConfirmRectangle}
+              >
+                Confirmar
+              </Button>
+            </div>
+          </div>
+        )}
 
         <Separator />
 
