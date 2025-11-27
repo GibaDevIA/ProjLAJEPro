@@ -139,7 +139,8 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
       const width = Math.abs(end.x - start.x)
       const height = Math.abs(end.y - start.y)
 
-      if (width > 0.1 && height > 0.1) {
+      // Allow smaller shapes (1cm) when adding programmatically or via manual input
+      if (width >= 0.01 && height >= 0.01) {
         // Generate Label
         const slabs = shapes.filter(
           (s) => s.type === 'rectangle' || s.type === 'polygon',

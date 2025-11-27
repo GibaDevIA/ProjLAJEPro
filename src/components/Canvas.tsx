@@ -231,8 +231,8 @@ export const Canvas: React.FC = () => {
         if (drawingStart) {
           // Second click (finish rectangle)
           const endWorld = snapPoint ? snapPoint.point : worldPos
-          addRectangle(drawingStart, endWorld)
-          setDrawingStart(null)
+          const success = addRectangle(drawingStart, endWorld)
+          if (success) setDrawingStart(null)
         } else {
           // First click (start rectangle)
           const startPoint = snapPoint ? snapPoint.point : worldPos
@@ -376,8 +376,8 @@ export const Canvas: React.FC = () => {
 
       if (width > 0.1 && height > 0.1) {
         // It was a drag, finish rectangle
-        addRectangle(drawingStart, endWorld)
-        setDrawingStart(null)
+        const success = addRectangle(drawingStart, endWorld)
+        if (success) setDrawingStart(null)
       }
       // If it was just a click (width/height small), we keep drawingStart
       // to allow the user to either type in the sidebar or click a second point.

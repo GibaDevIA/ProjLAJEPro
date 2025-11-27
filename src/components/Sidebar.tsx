@@ -99,13 +99,12 @@ export const Sidebar: React.FC = () => {
   }
 
   const handleConfirmRectangle = () => {
-    if (!drawingStart) {
-      toast.error('Clique na área de desenho para definir o ponto inicial.')
-      return
-    }
+    // Use drawingStart or default to origin (0,0) if not set
+    const start = drawingStart || { x: 0, y: 0 }
 
-    const w = parseFloat(rectWidth)
-    const h = parseFloat(rectLength)
+    // Handle comma as decimal separator
+    const w = parseFloat(rectWidth.replace(',', '.'))
+    const h = parseFloat(rectLength.replace(',', '.'))
 
     if (isNaN(w) || w <= 0 || isNaN(h) || h <= 0) {
       toast.error('Dimensões inválidas.')
@@ -114,17 +113,17 @@ export const Sidebar: React.FC = () => {
 
     // Create rectangle assuming positive direction from start point
     const endPoint = {
-      x: drawingStart.x + w,
-      y: drawingStart.y + h,
+      x: start.x + w,
+      y: start.y + h,
     }
 
-    const success = addRectangle(drawingStart, endPoint)
+    const success = addRectangle(start, endPoint)
     if (success) {
       setDrawingStart(null)
       setTool('select')
       toast.success('Laje criada com sucesso.')
     } else {
-      toast.error('Erro ao criar laje.')
+      toast.error('Erro ao criar laje. Verifique as dimensões.')
     }
   }
 
