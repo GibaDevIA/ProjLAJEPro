@@ -16,6 +16,10 @@ import {
   FileText,
   FileImage,
   Square,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { calculatePolygonArea } from '@/lib/geometry'
@@ -36,6 +40,8 @@ export const Sidebar: React.FC = () => {
     setDrawingStart,
     addRectangle,
     shapes,
+    activeShapeId,
+    updateShape,
   } = useDrawing()
 
   const fileInputRef = React.useRef<HTMLInputElement>(null)
@@ -43,6 +49,9 @@ export const Sidebar: React.FC = () => {
   // State for Rectangle Dimensions Panel
   const [rectWidth, setRectWidth] = useState('0.00')
   const [rectLength, setRectLength] = useState('0.00')
+
+  // State for Move Object Panel
+  const [moveDistance, setMoveDistance] = useState('0.10')
 
   useEffect(() => {
     if (tool === 'rectangle') {
@@ -254,6 +263,43 @@ export const Sidebar: React.FC = () => {
     setTool('select')
   }
 
+  const handleMoveShape = (direction: 'up' | 'down' | 'left' | 'right') => {
+    if (!activeShapeId) return
+    const shape = shapes.find((s) => s.id === activeShapeId)
+    if (!shape) return
+
+    const dist = parseFloat(moveDistance.replace(',', '.'))
+    if (isNaN(dist) || dist === 0) {
+      toast.error('Distância inválida')
+      return
+    }
+
+    let dx = 0
+    let dy = 0
+
+    switch (direction) {
+      case 'up':
+        dy = -dist
+        break
+      case 'down':
+        dy = dist
+        break
+      case 'left':
+        dx = -dist
+        break
+      case 'right':
+        dx = dist
+        break
+    }
+
+    const newPoints = shape.points.map((p) => ({
+      x: p.x + dx,
+      y: p.y + dy,
+    }))
+
+    updateShape(activeShapeId, { points: newPoints })
+  }
+
   return (
     <ScrollArea className="h-full w-full bg-white border-r border-border no-print">
       <div className="p-4 space-y-6">
@@ -329,6 +375,62 @@ export const Sidebar: React.FC = () => {
                 onClick={handleConfirmRectangle}
               >
                 Confirmar
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {activeShapeId && (
+          <div className="p-4 border rounded-md bg-gray-50 space-y-4 animate-fade-in">
+            <h3 className="font-medium text-sm">Mover Seleção</h3>
+            <div className="space-y-2">
+              <Label htmlFor="move-dist" className="text-xs">
+                Distância (m)
+              </Label>
+              <Input
+                id="move-dist"
+                type="number"
+                step="0.01"
+                min="0"
+                value={moveDistance}
+                onChange={(e) => setMoveDistance(e.target.value)}
+                className="h-8 text-sm bg-white"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2 justify-items-center">
+              <div />
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => handleMoveShape('up')}
+              >
+                <ArrowUp className="h-4 w-4" />
+              </Button>
+              <div />
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => handleMoveShape('left')}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => handleMoveShape('down')}
+              >
+                <ArrowDown className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => handleMoveShape('right')}
+              >
+                <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
           </div>

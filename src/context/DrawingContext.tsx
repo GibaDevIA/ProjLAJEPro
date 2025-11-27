@@ -13,6 +13,7 @@ interface DrawingContextType {
   shapes: Shape[]
   setShapes: React.Dispatch<React.SetStateAction<Shape[]>>
   addShape: (shape: Shape) => void
+  addPolygon: (points: Point[]) => void
   updateShape: (id: string, updates: Partial<Shape>) => void
   removeShape: (id: string) => void
   view: ViewState
@@ -139,9 +140,6 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
           },
         }
         const remaining = prev.filter((s) => !cycle.lineIds.includes(s.id))
-        // We need to set active shape ID here, but we can't do it inside setShapes
-        // So we'll do it in a useEffect or just rely on the fact that we return true
-        // and the caller might handle it, but setActiveShapeId is available in scope.
         setTimeout(() => setActiveShapeId(newPolygon.id), 0)
         return [...remaining, newPolygon]
       })
@@ -155,7 +153,6 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
     const width = Math.abs(end.x - start.x)
     const height = Math.abs(end.y - start.y)
 
-    // Allow smaller shapes (1cm) when adding programmatically or via manual input
     if (width >= 0.01 && height >= 0.01) {
       setShapes((prev) => {
         const label = getNextSlabLabel(prev)
@@ -182,12 +179,29 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
     return false
   }, [])
 
+  const addPolygon = useCallback((points: Point[]) => {
+    setShapes((prev) => {
+      const label = getNextSlabLabel(prev)
+      const newShape: Shape = {
+        id: generateId(),
+        type: 'polygon',
+        points,
+        properties: {
+          area: calculatePolygonArea(points),
+          label,
+        },
+      }
+      return [...prev, newShape]
+    })
+  }, [])
+
   return (
     <DrawingContext.Provider
       value={{
         shapes,
         setShapes,
         addShape,
+        addPolygon,
         updateShape,
         removeShape,
         view,

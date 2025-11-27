@@ -27,6 +27,7 @@ export const Canvas: React.FC = () => {
   const {
     shapes,
     addShape,
+    addPolygon,
     updateShape,
     removeShape,
     view,
@@ -205,12 +206,7 @@ export const Canvas: React.FC = () => {
 
           if (polyPoints.length >= 3 && distToStart < thresholdMeters) {
             // Closing the polygon manually
-            const newShape: Shape = {
-              id: generateId(),
-              type: 'polygon',
-              points: [...polyPoints],
-            }
-            addShape(newShape)
+            addPolygon([...polyPoints])
             setPolyPoints([])
             setDrawingStart(null)
             setShowMeasureModal(false)
