@@ -18,7 +18,7 @@ import {
   Square,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { calculatePolygonArea, calculateBoundingBox } from '@/lib/geometry'
+import { calculatePolygonArea } from '@/lib/geometry'
 import { Shape, ViewState } from '@/types/drawing'
 
 export const Sidebar: React.FC = () => {
@@ -69,11 +69,19 @@ export const Sidebar: React.FC = () => {
     )
     if (slabs.length === 0) return ''
 
+    // Calculate Total Area
+    const totalArea = slabs.reduce((acc, s) => {
+      const area = s.properties?.area || calculatePolygonArea(s.points)
+      return acc + area
+    }, 0)
+
     const rowHeight = 20
     const tableWidth = 300
     const padding = 10
     const headerHeight = 30
-    const totalHeight = headerHeight + slabs.length * rowHeight + padding * 2
+    const footerHeight = 30 // Space for Total
+    const totalHeight =
+      headerHeight + slabs.length * rowHeight + footerHeight + padding * 2
 
     // Position in bottom-right corner
     const x = svgWidth - tableWidth - 20
@@ -105,6 +113,14 @@ export const Sidebar: React.FC = () => {
         <text x="${180}" y="${yPos}" font-family="Inter, sans-serif" font-size="12" fill="#334155">${type} ${material}</text>
       `
     })
+
+    // Add Total Section
+    const totalYPos = headerHeight + slabs.length * rowHeight + 20
+    svgContent += `
+        <line x1="0" y1="${headerHeight + slabs.length * rowHeight + 5}" x2="${tableWidth}" y2="${headerHeight + slabs.length * rowHeight + 5}" stroke="#e2e8f0" />
+        <text x="${padding}" y="${totalYPos}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Total Geral</text>
+        <text x="${100}" y="${totalYPos}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">${totalArea.toFixed(2)}m²</text>
+    `
 
     svgContent += `</g>`
     return svgContent
