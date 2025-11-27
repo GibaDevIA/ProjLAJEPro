@@ -295,7 +295,8 @@ export function calculateJoistCount(
   interAxis: number,
 ): number {
   if (interAxis <= 0) return 0
-  return Math.floor(transversalLength / interAxis) + 1
+  // Align with generateBeamLines logic (centered distribution)
+  return Math.floor(transversalLength / interAxis + 0.5)
 }
 
 export function getSlabJoistCount(slab: Shape, joistArrow: Shape): number {
@@ -325,7 +326,7 @@ export function generateBeamLines(
 ): Point[][] {
   if (spacing <= 0) return []
 
-  // Direction of the arrow (beams are perpendicular to this)
+  // Direction of the arrow
   const dx = arrowEnd.x - arrowStart.x
   const dy = arrowEnd.y - arrowStart.y
   const len = Math.sqrt(dx * dx + dy * dy)
@@ -335,19 +336,22 @@ export function generateBeamLines(
   const ax = dx / len
   const ay = dy / len
 
-  // Beam direction (perpendicular to arrow)
+  // Beam direction (parallel to arrow)
+  const bx = ax
+  const by = ay
+
+  // Projection direction (perpendicular to arrow)
   // Rotate 90 degrees: (-y, x)
-  const bx = -ay
-  const by = ax
+  const px = -ay
+  const py = ax
 
   // We need to cover the polygon with lines parallel to (bx, by).
-  // To do this, we project the polygon onto the Arrow Direction (ax, ay).
-  // We find min and max projection values.
+  // To do this, we project the polygon onto the Perpendicular Direction (px, py).
   let minProj = Infinity
   let maxProj = -Infinity
 
   for (const p of polygonPoints) {
-    const proj = p.x * ax + p.y * ay
+    const proj = p.x * px + p.y * py
     if (proj < minProj) minProj = proj
     if (proj > maxProj) maxProj = proj
   }
@@ -355,12 +359,11 @@ export function generateBeamLines(
   // Generate lines starting from minProj to maxProj with spacing
   const lines: Point[][] = []
 
-  // Extend the range slightly to ensure coverage
   const start = minProj
   const end = maxProj
 
   for (let d = start + spacing / 2; d <= end; d += spacing) {
-    const origin = { x: d * ax, y: d * ay }
+    const origin = { x: d * px, y: d * py }
     const intersections: number[] = []
 
     for (let i = 0; i < polygonPoints.length; i++) {
