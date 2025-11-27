@@ -11,23 +11,23 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Point } from '@/types/drawing'
 
-interface MeasureModalProps {
+interface RectangleMeasureModalProps {
   position: Point
-  onConfirm: (length: number, angle?: number) => void
+  onConfirm: (width: number, height: number) => void
   onCancel: () => void
-  initialLength?: number
-  initialAngle?: number
+  initialWidth?: number
+  initialHeight?: number
 }
 
-export const MeasureModal: React.FC<MeasureModalProps> = ({
+export const RectangleMeasureModal: React.FC<RectangleMeasureModalProps> = ({
   position,
   onConfirm,
   onCancel,
-  initialLength = 0,
-  initialAngle = 0,
+  initialWidth = 0,
+  initialHeight = 0,
 }) => {
-  const [length, setLength] = useState(initialLength.toFixed(2))
-  const [angle, setAngle] = useState(initialAngle.toFixed(2))
+  const [width, setWidth] = useState(initialWidth.toFixed(2))
+  const [height, setHeight] = useState(initialHeight.toFixed(2))
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -38,16 +38,16 @@ export const MeasureModal: React.FC<MeasureModalProps> = ({
   }, [])
 
   useEffect(() => {
-    setLength(initialLength.toFixed(2))
-    setAngle(initialAngle.toFixed(2))
-  }, [initialLength, initialAngle])
+    setWidth(initialWidth.toFixed(2))
+    setHeight(initialHeight.toFixed(2))
+  }, [initialWidth, initialHeight])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const l = parseFloat(length)
-    const a = parseFloat(angle)
-    if (isNaN(l) || l < 0) return
-    onConfirm(l, isNaN(a) ? undefined : a)
+    const w = parseFloat(width)
+    const h = parseFloat(height)
+    if (isNaN(w) || w <= 0 || isNaN(h) || h <= 0) return
+    onConfirm(w, h)
   }
 
   return (
@@ -62,35 +62,36 @@ export const MeasureModal: React.FC<MeasureModalProps> = ({
         <form onSubmit={handleSubmit}>
           <CardHeader className="p-3 pb-2">
             <CardTitle className="text-sm font-medium">
-              Definir Medidas
+              Definir Dimensões
             </CardTitle>
           </CardHeader>
           <CardContent className="p-3 space-y-3">
             <div className="space-y-1">
-              <Label htmlFor="length" className="text-xs">
-                Comprimento (m)
+              <Label htmlFor="width" className="text-xs">
+                Largura (m)
               </Label>
               <Input
-                id="length"
+                id="width"
                 ref={inputRef}
                 type="number"
                 step="0.01"
-                min="0"
-                value={length}
-                onChange={(e) => setLength(e.target.value)}
+                min="0.01"
+                value={width}
+                onChange={(e) => setWidth(e.target.value)}
                 className="h-8 text-sm"
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="angle" className="text-xs">
-                Ângulo (°)
+              <Label htmlFor="height" className="text-xs">
+                Comprimento (m)
               </Label>
               <Input
-                id="angle"
+                id="height"
                 type="number"
-                step="0.1"
-                value={angle}
-                onChange={(e) => setAngle(e.target.value)}
+                step="0.01"
+                min="0.01"
+                value={height}
+                onChange={(e) => setHeight(e.target.value)}
                 className="h-8 text-sm"
               />
             </div>

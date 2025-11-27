@@ -8,12 +8,11 @@ import {
   calculateAngle,
   getPointFromLengthAndAngle,
   isPointInShape,
-  isPointInPolygon,
-  calculatePolygonArea,
 } from '@/lib/geometry'
 import { Point, Shape, SlabConfig } from '@/types/drawing'
 import { ShapeRenderer } from './ShapeRenderer'
 import { MeasureModal } from './MeasureModal'
+import { RectangleMeasureModal } from './RectangleMeasureModal'
 import { SlabConfigurationModal } from './SlabConfigurationModal'
 import { generateId, cn } from '@/lib/utils'
 import {
@@ -48,6 +47,7 @@ export const Canvas: React.FC = () => {
   const [drawingStart, setDrawingStart] = useState<Point | null>(null)
   const [polyPoints, setPolyPoints] = useState<Point[]>([])
   const [showMeasureModal, setShowMeasureModal] = useState(false)
+  const [showRectModal, setShowRectModal] = useState(false)
   const [modalPosition, setModalPosition] = useState<Point>({ x: 0, y: 0 })
 
   // State for Slab Joist Workflow
@@ -99,6 +99,7 @@ export const Canvas: React.FC = () => {
         setDrawingStart(null)
         setPolyPoints([])
         setShowMeasureModal(false)
+        setShowRectModal(false)
         setDrawingJoistForSlabId(null)
       }
     }
@@ -126,6 +127,44 @@ export const Canvas: React.FC = () => {
     }
 
     setView({ scale: newScale, offset: newOffset })
+  }
+
+  const createRectangle = (start: Point, end: Point) => {
+    const width = Math.abs(end.x - start.x)
+    const height = Math.abs(end.y - start.y)
+
+    if (width > 0.1 && height > 0.1) {
+      // Generate Label
+      const slabs = shapes.filter(
+        (s) => s.type === 'rectangle' || s.type === 'polygon',
+      )
+      const existingNumbers = slabs.map((s) => {
+        const match = s.properties?.label?.match(/^L(\d+)$/)
+        return match ? parseInt(match[1], 10) : 0
+      })
+      const nextNumber =
+        existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1
+
+      const newShape: Shape = {
+        id: generateId(),
+        type: 'rectangle',
+        points: [
+          start,
+          { x: end.x, y: start.y },
+          end,
+          { x: start.x, y: end.y },
+        ],
+        properties: {
+          width,
+          height,
+          label: `L${nextNumber}`,
+          area: width * height,
+        },
+      }
+      addShape(newShape)
+      return true
+    }
+    return false
   }
 
   const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
@@ -228,8 +267,19 @@ export const Canvas: React.FC = () => {
           }
         }
       } else if (tool === 'rectangle') {
-        const startPoint = snapPoint ? snapPoint.point : worldPos
-        setDrawingStart(startPoint)
+        if (drawingStart) {
+          // Second click (finish rectangle)
+          const endWorld = snapPoint ? snapPoint.point : worldPos
+          createRectangle(drawingStart, endWorld)
+          setDrawingStart(null)
+          setShowRectModal(false)
+        } else {
+          // First click (start rectangle)
+          const startPoint = snapPoint ? snapPoint.point : worldPos
+          setDrawingStart(startPoint)
+          setModalPosition(mousePos)
+          setShowRectModal(true)
+        }
       } else if (tool === 'slab_joist') {
         if (drawingJoistForSlabId) {
           // We are in "draw arrow" mode for a specific slab
@@ -367,36 +417,13 @@ export const Canvas: React.FC = () => {
       const height = Math.abs(endWorld.y - drawingStart.y)
 
       if (width > 0.1 && height > 0.1) {
-        // Generate Label
-        const slabs = shapes.filter(
-          (s) => s.type === 'rectangle' || s.type === 'polygon',
-        )
-        const existingNumbers = slabs.map((s) => {
-          const match = s.properties?.label?.match(/^L(\d+)$/)
-          return match ? parseInt(match[1], 10) : 0
-        })
-        const nextNumber =
-          existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1
-
-        const newShape: Shape = {
-          id: generateId(),
-          type: 'rectangle',
-          points: [
-            drawingStart,
-            { x: endWorld.x, y: drawingStart.y },
-            endWorld,
-            { x: drawingStart.x, y: endWorld.y },
-          ],
-          properties: {
-            width,
-            height,
-            label: `L${nextNumber}`,
-            area: width * height,
-          },
-        }
-        addShape(newShape)
+        // It was a drag, finish rectangle
+        createRectangle(drawingStart, endWorld)
+        setDrawingStart(null)
+        setShowRectModal(false)
       }
-      setDrawingStart(null)
+      // If it was just a click (width/height small), we keep drawingStart
+      // to allow the user to either type in the modal or click a second point.
     }
 
     if (tool === 'slab_joist' && drawingStart && currentMousePos) {
@@ -466,6 +493,29 @@ export const Canvas: React.FC = () => {
     setDrawingStart(endPoint)
     const newScreenPos = worldToScreen(endPoint, view)
     setModalPosition(newScreenPos)
+  }
+
+  const handleRectModalConfirm = (width: number, height: number) => {
+    if (!drawingStart) return
+
+    // Determine direction based on mouse position relative to start
+    let dirX = 1
+    let dirY = 1
+
+    if (currentMousePos) {
+      const currentWorld = screenToWorld(currentMousePos, view)
+      if (currentWorld.x < drawingStart.x) dirX = -1
+      if (currentWorld.y < drawingStart.y) dirY = -1
+    }
+
+    const endPoint = {
+      x: drawingStart.x + width * dirX,
+      y: drawingStart.y + height * dirY,
+    }
+
+    createRectangle(drawingStart, endPoint)
+    setDrawingStart(null)
+    setShowRectModal(false)
   }
 
   const handleSlabConfigConfirm = (config: SlabConfig) => {
@@ -805,6 +855,27 @@ export const Canvas: React.FC = () => {
               initialAngle={calculateAngle(
                 drawingStart,
                 screenToWorld(currentMousePos, view),
+              )}
+            />
+          )}
+
+          {showRectModal && drawingStart && currentMousePos && (
+            <RectangleMeasureModal
+              position={modalPosition}
+              onConfirm={handleRectModalConfirm}
+              onCancel={() => {
+                setShowRectModal(false)
+                setDrawingStart(null)
+              }}
+              initialWidth={Math.abs(
+                (snapPoint
+                  ? snapPoint.point.x
+                  : screenToWorld(currentMousePos, view).x) - drawingStart.x,
+              )}
+              initialHeight={Math.abs(
+                (snapPoint
+                  ? snapPoint.point.y
+                  : screenToWorld(currentMousePos, view).y) - drawingStart.y,
               )}
             />
           )}
