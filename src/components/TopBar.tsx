@@ -44,7 +44,8 @@ export const TopBar: React.FC = () => {
   ] as const
 
   return (
-    <div className="h-14 border-b bg-white flex items-center justify-center px-4 gap-2 shadow-sm no-print">
+    <div className="h-14 border-b bg-white flex items-center justify-center px-4 gap-2 shadow-sm no-print relative">
+      <div className="absolute left-4 font-semibold text-lg">ProjeLAJE1.0</div>
       {tools.map((t) => (
         <Tooltip key={t.id}>
           <TooltipTrigger asChild>

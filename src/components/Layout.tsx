@@ -38,7 +38,7 @@ export default function Layout() {
                   <Sidebar />
                 </SheetContent>
               </Sheet>
-              <h1 className="font-semibold text-lg">Desenho CAD</h1>
+              <h1 className="font-semibold text-lg">ProjeLAJE1.0</h1>
             </div>
             {/* Mobile TopBar equivalent could go here or be inside drawer */}
           </div>
