@@ -270,24 +270,35 @@ export function calculateBoundingBox(points: Point[]): {
 
 // --- Beam Generation Helpers ---
 
-// Project polygon points onto a vector
-export function getProjectedLength(points: Point[], vector: Point): number {
-  // Normalize vector
-  const len = Math.sqrt(vector.x * vector.x + vector.y * vector.y)
-  if (len === 0) return 0
-  const nx = vector.x / len
-  const ny = vector.y / len
+// Helper to get intersections of a ray with a polygon
+// Returns sorted t values (distance from origin along dir)
+function getRayPolygonIntersections(
+  points: Point[],
+  origin: Point,
+  dir: Point,
+): number[] {
+  const intersections: number[] = []
+  for (let i = 0; i < points.length; i++) {
+    const p1 = points[i]
+    const p2 = points[(i + 1) % points.length]
 
-  let minProj = Infinity
-  let maxProj = -Infinity
+    const sx = p2.x - p1.x
+    const sy = p2.y - p1.y
 
-  for (const p of points) {
-    const proj = p.x * nx + p.y * ny
-    if (proj < minProj) minProj = proj
-    if (proj > maxProj) maxProj = proj
+    const rxs = dir.x * sy - dir.y * sx
+    if (Math.abs(rxs) < 1e-9) continue
+
+    const qpx = p1.x - origin.x
+    const qpy = p1.y - origin.y
+
+    const t = (qpx * sy - qpy * sx) / rxs
+    const u = (qpx * dir.y - qpy * dir.x) / rxs
+
+    if (u >= 0 && u <= 1) {
+      intersections.push(t)
+    }
   }
-
-  return maxProj - minProj
+  return intersections.sort((a, b) => a - b)
 }
 
 export function calculateJoistCount(
@@ -295,14 +306,11 @@ export function calculateJoistCount(
   interAxis: number,
 ): number {
   if (interAxis <= 0) return 0
-  // Align with generateBeamLines logic (centered distribution)
   return Math.floor(transversalLength / interAxis + 0.5)
 }
 
 export function getSlabJoistCount(slab: Shape, joistArrow: Shape): number {
   if (!slab.properties?.slabConfig) return 0
-
-  // Use generateBeamLines to ensure consistency with visual representation and materials list
   const interEixoMeters = (slab.properties.slabConfig.interEixo || 42) / 100
   const lines = generateBeamLines(
     slab.points,
@@ -360,34 +368,9 @@ export function generateBeamLines(
 
   for (let d = start + spacing / 2; d <= end; d += spacing) {
     const origin = { x: d * px, y: d * py }
-    const intersections: number[] = []
+    const dir = { x: bx, y: by }
 
-    for (let i = 0; i < polygonPoints.length; i++) {
-      const p1 = polygonPoints[i]
-      const p2 = polygonPoints[(i + 1) % polygonPoints.length]
-
-      const sx = p2.x - p1.x
-      const sy = p2.y - p1.y
-      // r is beamDir (bx, by)
-      // s is segment vector (sx, sy)
-      // q is p1
-      // p is origin
-
-      const rxs = bx * sy - by * sx
-      if (Math.abs(rxs) < 1e-9) continue // Parallel
-
-      const qpx = p1.x - origin.x
-      const qpy = p1.y - origin.y
-
-      const t = (qpx * sy - qpy * sx) / rxs
-      const u = (qpx * by - qpy * bx) / rxs
-
-      if (u >= 0 && u <= 1) {
-        intersections.push(t)
-      }
-    }
-
-    intersections.sort((a, b) => a - b)
+    const intersections = getRayPolygonIntersections(polygonPoints, origin, dir)
 
     // Create segments from pairs of intersections
     for (let i = 0; i < intersections.length; i += 2) {
@@ -409,12 +392,63 @@ export function calculateVigotaLengths(
   joistArrow: Shape,
 ): number[] {
   if (!slab.properties?.slabConfig) return []
-  const interEixoMeters = (slab.properties.slabConfig.interEixo || 42) / 100
-  const lines = generateBeamLines(
+  const config = slab.properties.slabConfig
+  const interEixoMeters = (config.interEixo || 42) / 100
+  const beamWidthMeters = (config.beamWidth || 12) / 100
+
+  // Get the center lines of the joists
+  const centerLines = generateBeamLines(
     slab.points,
     joistArrow.points[0],
     joistArrow.points[1],
     interEixoMeters,
   )
-  return lines.map((l) => calculateLineLength(l[0], l[1]))
+
+  return centerLines.map((line) => {
+    const p1 = line[0]
+    const p2 = line[1]
+    const centerLen = calculateLineLength(p1, p2)
+
+    // For polygons, we want to ensure we account for the full width of the joist.
+    // If the joist is cut at an angle, one side might be longer than the center.
+    // We calculate the length at the center, and at +/- half width.
+    if (slab.type === 'polygon') {
+      const dx = p2.x - p1.x
+      const dy = p2.y - p1.y
+      const len = Math.sqrt(dx * dx + dy * dy)
+      if (len === 0) return 0
+
+      const dir = { x: dx / len, y: dy / len }
+      const perp = { x: -dir.y, y: dir.x }
+      const halfWidth = beamWidthMeters / 2
+
+      const origin1 = {
+        x: p1.x + perp.x * halfWidth,
+        y: p1.y + perp.y * halfWidth,
+      }
+      const origin2 = {
+        x: p1.x - perp.x * halfWidth,
+        y: p1.y - perp.y * halfWidth,
+      }
+
+      // Helper to get max segment length from intersections
+      const getMaxSeg = (ts: number[]) => {
+        let maxL = 0
+        for (let i = 0; i < ts.length; i += 2) {
+          if (i + 1 < ts.length) maxL = Math.max(maxL, ts[i + 1] - ts[i])
+        }
+        return maxL
+      }
+
+      const t1 = getRayPolygonIntersections(slab.points, origin1, dir)
+      const t2 = getRayPolygonIntersections(slab.points, origin2, dir)
+
+      const len1 = getMaxSeg(t1)
+      const len2 = getMaxSeg(t2)
+
+      return Math.max(centerLen, len1, len2)
+    }
+
+    return centerLen
+  })
 }

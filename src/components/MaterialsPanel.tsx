@@ -70,8 +70,10 @@ export const MaterialsPanel: React.FC = () => {
               beamCount = lengths.length
 
               if (slab.type === 'polygon') {
-                // For polygons, round up to nearest integer
+                // For polygons, round up to nearest integer (ceil)
+                // This ensures that even if a joist is 2.01m, it counts as 3m
                 lengths.forEach((l) => {
+                  // Use toFixed(4) to avoid floating point epsilon errors before ceil
                   const rounded = Math.ceil(Number(l.toFixed(4)))
                   const key = rounded.toString()
                   vigotaGroups[key] = (vigotaGroups[key] || 0) + 1
