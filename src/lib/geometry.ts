@@ -184,6 +184,17 @@ export function getPointFromLengthAndAngle(
   }
 }
 
+export function getOrthogonalPoint(start: Point, current: Point): Point {
+  const dx = Math.abs(current.x - start.x)
+  const dy = Math.abs(current.y - start.y)
+
+  if (dx >= dy) {
+    return { x: current.x, y: start.y }
+  } else {
+    return { x: start.x, y: current.y }
+  }
+}
+
 export function findClosedCycle(
   lines: Shape[],
 ): { lineIds: string[]; points: Point[] } | null {

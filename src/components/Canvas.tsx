@@ -9,6 +9,7 @@ import {
   getPointFromLengthAndAngle,
   isPointInShape,
   isWorldPointInShape,
+  getOrthogonalPoint,
 } from '@/lib/geometry'
 import { Point, Shape, SlabConfig } from '@/types/drawing'
 import { ShapeRenderer } from './ShapeRenderer'
@@ -382,7 +383,11 @@ export const Canvas: React.FC = () => {
     }
 
     if (tool === 'slab_joist' && drawingStart && currentMousePos) {
-      const endWorld = screenToWorld(currentMousePos, view)
+      let endWorld = screenToWorld(currentMousePos, view)
+
+      // Snap to orthogonal
+      endWorld = getOrthogonalPoint(drawingStart, endWorld)
+
       const length = calculateLineLength(drawingStart, endWorld)
 
       if (length > 0.1) {
@@ -617,8 +622,12 @@ export const Canvas: React.FC = () => {
       )
     }
     if (tool === 'slab_joist' && drawingStart && currentMousePos) {
+      const currentWorld = screenToWorld(currentMousePos, view)
+      const snappedWorld = getOrthogonalPoint(drawingStart, currentWorld)
+
       const startScreen = worldToScreen(drawingStart, view)
-      const endScreen = currentMousePos
+      const endScreen = worldToScreen(snappedWorld, view)
+
       return (
         <g>
           <line
