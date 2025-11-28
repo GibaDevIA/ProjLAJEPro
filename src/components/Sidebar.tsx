@@ -121,8 +121,11 @@ export const Sidebar: React.FC = () => {
         const lengths = calculateVigotaLengths(slab, joistArrow)
         vigotaCount = lengths.length
 
-        // Round up to nearest whole number (integer)
-        const roundedLengths = lengths.map((l) => Math.ceil(l))
+        // Round up to nearest whole number (integer) with precision fix
+        // This ensures that 3.0000001 becomes 4, but 3.00000000004 (float error) becomes 3
+        const roundedLengths = lengths.map((l) =>
+          Math.ceil(Number(l.toFixed(4))),
+        )
 
         // Group lengths
         const groups: Record<number, number> = {}

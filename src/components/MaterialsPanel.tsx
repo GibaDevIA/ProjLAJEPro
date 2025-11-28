@@ -69,9 +69,10 @@ export const MaterialsPanel: React.FC = () => {
               const lengths = calculateVigotaLengths(slab, joistArrow)
               beamCount = lengths.length
 
-              // Round up to nearest whole number
+              // Round up to nearest whole number with precision fix
+              // This ensures that 3.0000001 becomes 4, but 3.00000000004 (float error) becomes 3
               lengths.forEach((l) => {
-                const rounded = Math.ceil(l)
+                const rounded = Math.ceil(Number(l.toFixed(4)))
                 vigotaGroups[rounded] = (vigotaGroups[rounded] || 0) + 1
               })
 
