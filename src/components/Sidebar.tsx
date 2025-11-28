@@ -22,7 +22,7 @@ import {
   ArrowRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { generateSlabReportData } from '@/lib/geometry'
+import { generateSlabReportData, worldToScreen } from '@/lib/geometry'
 import { Shape, ViewState } from '@/types/drawing'
 
 export const Sidebar: React.FC = () => {
@@ -87,23 +87,11 @@ export const Sidebar: React.FC = () => {
     const footerHeight = 30
     const titleHeight = 30
 
-    // Calculate max height needed for a row based on content
-    // We estimate height: Label(20) + Area(20) + Type(20) + Vigotas(variable)
-    // Vigota line height ~15px.
-    // Let's calculate max vigota lines in the dataset to set a uniform height or per row
-    // For simplicity and "organized" look, we'll use a fixed generous height or calculate per item
-    // Let's calculate height per item and take max for the row.
-
     const getRowHeight = (startIndex: number, count: number) => {
       let maxH = 100 // Base height
       for (let i = 0; i < count; i++) {
         if (startIndex + i < reportData.length) {
           const item = reportData[startIndex + i]
-          // Estimate lines for vigotas
-          // Vigota summary string length / chars per line?
-          // Or just use vigotaDetails count if we list them?
-          // The summary string "2x 3.00m, 4x 2.50m" wraps.
-          // Approx 30 chars per line.
           const summaryLines = Math.ceil((item.vigotaSummary.length || 1) / 30)
           const itemH = 80 + summaryLines * 15
           if (itemH > maxH) maxH = itemH
@@ -259,42 +247,196 @@ export const Sidebar: React.FC = () => {
     const svg = document.querySelector('#canvas-container svg') as SVGSVGElement
     if (!svg) return
 
+    // 1. Prepare Drawing (Page 1)
+    // Clone the SVG to manipulate it for printing without affecting the UI
+    const clone = svg.cloneNode(true) as SVGSVGElement
+
+    // Calculate Bounding Box of all shapes to Auto-Fit
+    if (shapes.length > 0) {
+      let minX = Infinity
+      let minY = Infinity
+      let maxX = -Infinity
+      let maxY = -Infinity
+
+      shapes.forEach((s) => {
+        s.points.forEach((p) => {
+          const screenP = worldToScreen(p, view)
+          if (screenP.x < minX) minX = screenP.x
+          if (screenP.y < minY) minY = screenP.y
+          if (screenP.x > maxX) maxX = screenP.x
+          if (screenP.y > maxY) maxY = screenP.y
+        })
+      })
+
+      // Add padding
+      const padding = 40
+      const width = maxX - minX + padding * 2
+      const height = maxY - minY + padding * 2
+
+      // Set viewBox to the bounding box of the content
+      clone.setAttribute(
+        'viewBox',
+        `${minX - padding} ${minY - padding} ${width} ${height}`,
+      )
+      clone.style.width = '100%'
+      clone.style.height = '100%'
+      clone.removeAttribute('width')
+      clone.removeAttribute('height')
+    }
+
     const serializer = new XMLSerializer()
-    let source = serializer.serializeToString(svg)
+    const svgString = serializer.serializeToString(clone)
 
-    // Inject Report
-    const reportSVG = generateReportSVG(
-      shapes,
-      view,
-      svg.clientWidth,
-      svg.clientHeight,
-    )
-    source = source.replace('</svg>', `${reportSVG}</svg>`)
+    // 2. Prepare Report (Page 2)
+    const reportData = generateSlabReportData(shapes)
+    const totalArea = reportData.reduce((acc, item) => acc + item.area, 0)
 
-    // Open new window for printing
+    const reportRows = reportData
+      .map(
+        (item) => `
+      <tr>
+        <td>${item.label}</td>
+        <td>${item.area.toFixed(2)} m²</td>
+        <td>${item.type}</td>
+        <td>${item.material === 'ceramic' ? 'Cerâmica' : item.material === 'eps' ? 'EPS' : item.material}</td>
+        <td>${item.vigotaCount}</td>
+        <td>${item.vigotaSummary || '-'}</td>
+      </tr>
+    `,
+      )
+      .join('')
+
+    const reportHTML = `
+      <div class="print-page page-break">
+        <div class="header">Descritivo dos Materiais</div>
+        <div class="report-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Elemento</th>
+                <th>Área</th>
+                <th>Tipo</th>
+                <th>Material</th>
+                <th>Qtd. Vigotas</th>
+                <th>Detalhe Vigotas</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reportRows}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="1" style="font-weight:bold">Total Geral</td>
+                <td style="font-weight:bold">${totalArea.toFixed(2)} m²</td>
+                <td colspan="4"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    `
+
+    // 3. Open Print Window
     const printWindow = window.open('', '_blank')
     if (printWindow) {
       printWindow.document.write(`
-          <html>
-            <head>
-              <title>Planta - ProjeLAJE</title>
-              <style>
-                @page { size: landscape; margin: 0; }
-                body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
-                svg { width: 100%; height: 100%; max-height: 100vh; }
-              </style>
-            </head>
-            <body>
-              ${source}
-              <script>
-                window.onload = () => {
+        <html>
+          <head>
+            <title>Projeto - ProjeLAJE</title>
+            <style>
+              @page { size: landscape; margin: 0; }
+              body { margin: 0; font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
+              
+              .print-page {
+                width: 100vw;
+                height: 100vh;
+                position: relative;
+                display: flex;
+                flex-direction: column;
+                padding: 20px;
+                box-sizing: border-box;
+              }
+              
+              .page-break {
+                page-break-before: always;
+              }
+
+              .header {
+                text-align: center;
+                font-size: 24px;
+                font-weight: bold;
+                margin-bottom: 10px;
+                padding-bottom: 10px;
+                border-bottom: 2px solid #0f172a;
+                text-transform: uppercase;
+                color: #0f172a;
+              }
+
+              .drawing-container {
+                flex: 1;
+                width: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                overflow: hidden;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+              }
+
+              /* Report Table Styles */
+              .report-container {
+                width: 100%;
+                margin-top: 20px;
+              }
+              table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 12px;
+              }
+              th, td {
+                border: 1px solid #e2e8f0;
+                padding: 8px 12px;
+                text-align: left;
+                color: #334155;
+              }
+              th {
+                background-color: #f8fafc;
+                font-weight: bold;
+                color: #0f172a;
+              }
+              tr:nth-child(even) {
+                background-color: #f8fafc;
+              }
+              tfoot td {
+                background-color: #f1f5f9;
+                border-top: 2px solid #cbd5e1;
+                color: #0f172a;
+              }
+            </style>
+          </head>
+          <body>
+            <!-- Page 1: Drawing -->
+            <div class="print-page">
+              <div class="header">Croqui de Montagem Laje</div>
+              <div class="drawing-container">
+                ${svgString}
+              </div>
+            </div>
+
+            <!-- Page 2: Report -->
+            ${reportHTML}
+
+            <script>
+              window.onload = () => {
+                setTimeout(() => {
                   window.print();
                   window.onafterprint = () => window.close();
-                }
-              </script>
-            </body>
-          </html>
-        `)
+                }, 500);
+              }
+            </script>
+          </body>
+        </html>
+      `)
       printWindow.document.close()
     } else {
       toast.error('Permita popups para exportar PDF.')
