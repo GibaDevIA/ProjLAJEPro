@@ -62,23 +62,31 @@ export const MaterialsPanel: React.FC = () => {
             )
 
             let beamCount = 0
-            let vigotaGroups: Record<number, number> = {}
-            let sortedLengths: number[] = []
+            let vigotaGroups: Record<string, number> = {}
+            let sortedLengths: string[] = []
 
             if (joistArrow && slab.properties?.slabConfig) {
               const lengths = calculateVigotaLengths(slab, joistArrow)
               beamCount = lengths.length
 
-              // Round up to nearest whole number with precision fix
-              // This ensures that 3.0000001 becomes 4, but 3.00000000004 (float error) becomes 3
-              lengths.forEach((l) => {
-                const rounded = Math.ceil(Number(l.toFixed(4)))
-                vigotaGroups[rounded] = (vigotaGroups[rounded] || 0) + 1
-              })
+              if (slab.type === 'polygon') {
+                // For polygons, round up to nearest integer
+                lengths.forEach((l) => {
+                  const rounded = Math.ceil(Number(l.toFixed(4)))
+                  const key = rounded.toString()
+                  vigotaGroups[key] = (vigotaGroups[key] || 0) + 1
+                })
+              } else {
+                // For rectangles, keep exact value (2 decimals)
+                lengths.forEach((l) => {
+                  const val = l.toFixed(2)
+                  vigotaGroups[val] = (vigotaGroups[val] || 0) + 1
+                })
+              }
 
-              sortedLengths = Object.keys(vigotaGroups)
-                .map(Number)
-                .sort((a, b) => b - a)
+              sortedLengths = Object.keys(vigotaGroups).sort(
+                (a, b) => Number(b) - Number(a),
+              )
             } else if (joistArrow && !slab.properties?.slabConfig) {
               // Fallback if config is missing but arrow exists
               beamCount = getSlabJoistCount(slab, joistArrow)

@@ -121,22 +121,27 @@ export const Sidebar: React.FC = () => {
         const lengths = calculateVigotaLengths(slab, joistArrow)
         vigotaCount = lengths.length
 
-        // Round up to nearest whole number (integer) with precision fix
-        // This ensures that 3.0000001 becomes 4, but 3.00000000004 (float error) becomes 3
-        const roundedLengths = lengths.map((l) =>
-          Math.ceil(Number(l.toFixed(4))),
-        )
+        const groups: Record<string, number> = {}
 
-        // Group lengths
-        const groups: Record<number, number> = {}
-        roundedLengths.forEach((l) => {
-          groups[l] = (groups[l] || 0) + 1
-        })
+        if (slab.type === 'polygon') {
+          // Polygon: Round up to nearest integer
+          lengths.forEach((l) => {
+            const rounded = Math.ceil(Number(l.toFixed(4)))
+            const key = rounded.toString()
+            groups[key] = (groups[key] || 0) + 1
+          })
+        } else {
+          // Rectangle: Exact value (2 decimals)
+          lengths.forEach((l) => {
+            const val = l.toFixed(2)
+            groups[val] = (groups[val] || 0) + 1
+          })
+        }
 
         // Format summary
-        const sortedLengths = Object.keys(groups)
-          .map(Number)
-          .sort((a, b) => b - a) // Descending order
+        const sortedLengths = Object.keys(groups).sort(
+          (a, b) => Number(b) - Number(a),
+        )
         vigotaSummary = sortedLengths
           .map((len) => `${groups[len]}x ${len}m`)
           .join(', ')
