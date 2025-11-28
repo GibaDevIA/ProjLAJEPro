@@ -64,7 +64,11 @@ export function isPointInShape(
   const screenPoints = shape.points.map((p) => worldToScreen(p, view))
   const tolerance = 5 // pixels
 
-  if (shape.type === 'line' || shape.type === 'arrow') {
+  if (
+    shape.type === 'line' ||
+    shape.type === 'arrow' ||
+    shape.type === 'vigota'
+  ) {
     // Check distance to each segment
     for (let i = 0; i < screenPoints.length - 1; i++) {
       if (
@@ -433,6 +437,7 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
   const slabs = shapes.filter(
     (s) => s.type === 'rectangle' || s.type === 'polygon',
   )
+  const manualVigotas = shapes.filter((s) => s.type === 'vigota')
 
   return slabs.map((slab, index) => {
     const area = slab.properties?.area || calculatePolygonArea(slab.points)
@@ -471,16 +476,34 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
     let vigotaCount = 0
     let vigotaSummary = ''
     let vigotaDetails: { length: string; count: number }[] = []
+    let generatedLengths: number[] = []
 
     if (joistArrow && slab.properties?.slabConfig) {
-      const lengths = calculateVigotaLengths(slab, joistArrow)
-      vigotaCount = lengths.length
+      generatedLengths = calculateVigotaLengths(slab, joistArrow)
+    }
 
+    // Find manual vigotas inside this slab
+    const slabManualVigotas = manualVigotas.filter((v) => {
+      const mid = {
+        x: (v.points[0].x + v.points[1].x) / 2,
+        y: (v.points[0].y + v.points[1].y) / 2,
+      }
+      return isWorldPointInShape(mid, slab)
+    })
+
+    const manualLengths = slabManualVigotas.map((v) =>
+      calculateLineLength(v.points[0], v.points[1]),
+    )
+
+    const allLengths = [...generatedLengths, ...manualLengths]
+    vigotaCount = allLengths.length
+
+    if (vigotaCount > 0) {
       const groups: Record<string, number> = {}
 
       if (slab.type === 'polygon') {
         // Polygon: Round up to nearest 0.10m increment
-        lengths.forEach((l) => {
+        allLengths.forEach((l) => {
           const val = Number(l.toFixed(4))
           const rounded = Math.ceil(val * 10) / 10
           const key = rounded.toFixed(2)
@@ -488,7 +511,7 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
         })
       } else {
         // Rectangle: Exact value (2 decimals)
-        lengths.forEach((l) => {
+        allLengths.forEach((l) => {
           const val = l.toFixed(2)
           groups[val] = (groups[val] || 0) + 1
         })
@@ -506,8 +529,6 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
       vigotaSummary = sortedLengths
         .map((len) => `${groups[len]}x ${len}m`)
         .join(', ')
-    } else if (joistArrow && !slab.properties?.slabConfig) {
-      vigotaCount = getSlabJoistCount(slab, joistArrow)
     }
 
     return {
@@ -521,6 +542,7 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
       vigotaCount,
       vigotaSummary,
       vigotaDetails,
+      hasExtraVigotas: manualLengths.length > 0,
     }
   })
 }

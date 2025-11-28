@@ -3,7 +3,13 @@ export type Point = {
   y: number
 }
 
-export type ShapeType = 'line' | 'rectangle' | 'polygon' | 'arrow' | 'dimension'
+export type ShapeType =
+  | 'line'
+  | 'rectangle'
+  | 'polygon'
+  | 'arrow'
+  | 'dimension'
+  | 'vigota'
 
 export interface SlabConfig {
   type: 'H8' | 'H12' | 'H16' | 'H20' | 'H25' | 'H30'
@@ -44,6 +50,8 @@ export type ToolType =
   | 'pan'
   | 'slab_joist'
   | 'dimension'
+  | 'add_vigota'
+  | 'delete_vigota'
 
 export interface SnapResult {
   point: Point
@@ -62,4 +70,5 @@ export interface SlabReportItem {
   vigotaCount: number
   vigotaSummary: string
   vigotaDetails: { length: string; count: number }[]
+  hasExtraVigotas: boolean
 }

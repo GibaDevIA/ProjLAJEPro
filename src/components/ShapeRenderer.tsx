@@ -69,10 +69,6 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
             markerStart="url(#dim-arrow-start)"
             markerEnd="url(#dim-arrow-end)"
           />
-          {/* Extension Lines (small perpendicular ticks) */}
-          {/* For simplicity, we just draw the main line with arrows. 
-                Full CAD dimensioning would require offset logic which is complex. */}
-
           {/* Text Background */}
           <rect
             x={midX - 20}
@@ -138,6 +134,28 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
               </text>
             </g>
           )}
+        </g>
+      )
+    }
+
+    if (shape.type === 'vigota') {
+      const p1 = screenPoints[0]
+      const p2 = screenPoints[1]
+      return (
+        <g className="group">
+          <line
+            x1={p1.x}
+            y1={p1.y}
+            x2={p2.x}
+            y2={p2.y}
+            stroke={isSelected ? '#007bff' : '#6b7280'}
+            strokeWidth={2}
+            strokeDasharray="4 4"
+            className="transition-colors duration-150"
+          />
+          {/* Small markers at ends to make it easier to see/select */}
+          <circle cx={p1.x} cy={p1.y} r={2} fill="#6b7280" />
+          <circle cx={p2.x} cy={p2.y} r={2} fill="#6b7280" />
         </g>
       )
     }

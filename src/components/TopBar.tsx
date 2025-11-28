@@ -8,6 +8,8 @@ import {
   Move,
   ArrowUpRight,
   Ruler,
+  Plus,
+  Eraser,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -44,6 +46,20 @@ export const TopBar: React.FC = () => {
       className: '',
     },
     {
+      id: 'add_vigota',
+      icon: Plus,
+      label: 'Add Vigota',
+      onClick: () => setTool('add_vigota'),
+      className: '',
+    },
+    {
+      id: 'delete_vigota',
+      icon: Eraser,
+      label: 'Del Vigota',
+      onClick: () => setTool('delete_vigota'),
+      className: '',
+    },
+    {
       id: 'dimension',
       icon: Ruler,
       label: 'Cotas',
@@ -60,8 +76,8 @@ export const TopBar: React.FC = () => {
   ] as const
 
   return (
-    <div className="h-20 border-b bg-blue-50 flex items-center justify-center px-4 gap-2 shadow-sm no-print relative">
-      <div className="absolute left-4 font-semibold text-lg text-slate-800">
+    <div className="h-20 border-b bg-blue-50 flex items-center justify-center px-4 gap-2 shadow-sm no-print relative overflow-x-auto">
+      <div className="absolute left-4 font-semibold text-lg text-slate-800 hidden xl:block">
         ProjeLAJE1.0
       </div>
       <div className="flex gap-2">

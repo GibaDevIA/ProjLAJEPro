@@ -187,43 +187,77 @@ export const Canvas: React.FC = () => {
       return
     }
 
+    // Handle Delete Vigota Tool
+    if (tool === 'delete_vigota') {
+      let clickedVigotaId: string | null = null
+      for (let i = shapes.length - 1; i >= 0; i--) {
+        if (
+          shapes[i].type === 'vigota' &&
+          isPointInShape(mousePos, shapes[i], view)
+        ) {
+          clickedVigotaId = shapes[i].id
+          break
+        }
+      }
+      if (clickedVigotaId) {
+        removeShape(clickedVigotaId)
+        toast.success('Vigota removida.')
+      }
+      return
+    }
+
     // Handle Drawing Tools (Left click only)
     if (
       tool !== 'select' &&
       tool !== 'pan' &&
+      tool !== 'delete_vigota' &&
       (!('button' in e) || (e as React.MouseEvent).button === 0)
     ) {
-      if (tool === 'line') {
+      if (tool === 'line' || tool === 'add_vigota') {
         const startPoint = snapPoint ? snapPoint.point : worldPos
 
         if (polyPoints.length === 0) {
           setPolyPoints([startPoint])
           setDrawingStart(startPoint)
           setModalPosition(mousePos)
-          setShowMeasureModal(true)
+          if (tool === 'line') setShowMeasureModal(true)
         } else {
           const firstPoint = polyPoints[0]
           const distToStart = calculateLineLength(startPoint, firstPoint)
           const thresholdMeters = 8 / view.scale
 
-          if (polyPoints.length >= 3 && distToStart < thresholdMeters) {
+          if (
+            tool === 'line' &&
+            polyPoints.length >= 3 &&
+            distToStart < thresholdMeters
+          ) {
             // Closing the polygon manually
             addPolygon([...polyPoints])
             setPolyPoints([])
             setDrawingStart(null)
             setShowMeasureModal(false)
           } else {
-            setPolyPoints([...polyPoints, startPoint])
-            setDrawingStart(startPoint)
-            setModalPosition(mousePos)
-            setShowMeasureModal(true)
-
+            // Finish line or vigota segment
+            const endPoint = startPoint
             const newShape: Shape = {
               id: generateId(),
-              type: 'line',
-              points: [polyPoints[polyPoints.length - 1], startPoint],
+              type: tool === 'add_vigota' ? 'vigota' : 'line',
+              points: [polyPoints[polyPoints.length - 1], endPoint],
             }
             addShape(newShape)
+
+            if (tool === 'add_vigota') {
+              // Vigota is single segment usually, reset
+              setPolyPoints([])
+              setDrawingStart(null)
+              toast.success('Vigota adicionada.')
+            } else {
+              // Line tool continues
+              setPolyPoints([...polyPoints, endPoint])
+              setDrawingStart(endPoint)
+              setModalPosition(mousePos)
+              setShowMeasureModal(true)
+            }
           }
         }
       } else if (tool === 'rectangle') {
@@ -373,7 +407,12 @@ export const Canvas: React.FC = () => {
       return
     }
 
-    if (tool === 'line' || tool === 'rectangle' || tool === 'dimension') {
+    if (
+      tool === 'line' ||
+      tool === 'rectangle' ||
+      tool === 'dimension' ||
+      tool === 'add_vigota'
+    ) {
       const snap = getSnapPoint(mousePos, shapes, view, [], gridVisible)
       setSnapPoint(snap)
     } else {
@@ -571,7 +610,11 @@ export const Canvas: React.FC = () => {
   }
 
   const renderPreview = () => {
-    if (tool === 'line' && drawingStart && currentMousePos) {
+    if (
+      (tool === 'line' || tool === 'add_vigota') &&
+      drawingStart &&
+      currentMousePos
+    ) {
       const startScreen = worldToScreen(drawingStart, view)
       const endScreen = snapPoint ? snapPoint.targetPoint : currentMousePos
 
@@ -588,7 +631,7 @@ export const Canvas: React.FC = () => {
             y1={startScreen.y}
             x2={endScreen.x}
             y2={endScreen.y}
-            stroke="#007bff"
+            stroke={tool === 'add_vigota' ? '#6b7280' : '#007bff'}
             strokeWidth={2}
             strokeDasharray="5 5"
             className="animate-pulse"
@@ -597,7 +640,7 @@ export const Canvas: React.FC = () => {
             x={endScreen.x + 10}
             y={endScreen.y + 10}
             className="text-xs font-bold"
-            fill="#007bff"
+            fill={tool === 'add_vigota' ? '#6b7280' : '#007bff'}
             style={{ fontSize: '12px', fontFamily: 'Inter' }}
           >
             {length.toFixed(2)}m {angle.toFixed(1)}°
@@ -724,6 +767,14 @@ export const Canvas: React.FC = () => {
                   view,
                 ),
               'cursor-default': tool === 'select' && !activeShapeId,
+              'cursor-pointer':
+                tool === 'delete_vigota' &&
+                currentMousePos &&
+                shapes.some(
+                  (s) =>
+                    s.type === 'vigota' &&
+                    isPointInShape(currentMousePos, s, view),
+                ),
             })}
             onWheel={handleWheel}
             onMouseDown={handleMouseDown}
