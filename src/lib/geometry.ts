@@ -302,19 +302,15 @@ export function calculateJoistCount(
 export function getSlabJoistCount(slab: Shape, joistArrow: Shape): number {
   if (!slab.properties?.slabConfig) return 0
 
-  // Default 0.42m if not specified, or use configured value
+  // Use generateBeamLines to ensure consistency with visual representation and materials list
   const interEixoMeters = (slab.properties.slabConfig.interEixo || 42) / 100
-
-  const arrowVec = {
-    x: joistArrow.points[1].x - joistArrow.points[0].x,
-    y: joistArrow.points[1].y - joistArrow.points[0].y,
-  }
-  // Perpendicular vector
-  const perpVec = { x: -arrowVec.y, y: arrowVec.x }
-
-  const transversalLen = getProjectedLength(slab.points, perpVec)
-
-  return calculateJoistCount(transversalLen, interEixoMeters)
+  const lines = generateBeamLines(
+    slab.points,
+    joistArrow.points[0],
+    joistArrow.points[1],
+    interEixoMeters,
+  )
+  return lines.length
 }
 
 // Generate beam lines inside a polygon

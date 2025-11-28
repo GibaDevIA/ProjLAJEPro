@@ -7,6 +7,7 @@ import {
   calculateBoundingBox,
   isWorldPointInShape,
   getSlabJoistCount,
+  calculateVigotaLengths,
 } from '@/lib/geometry'
 
 export const MaterialsPanel: React.FC = () => {
@@ -61,7 +62,24 @@ export const MaterialsPanel: React.FC = () => {
             )
 
             let beamCount = 0
+            let vigotaGroups: Record<number, number> = {}
+            let sortedLengths: number[] = []
+
             if (joistArrow && slab.properties?.slabConfig) {
+              const lengths = calculateVigotaLengths(slab, joistArrow)
+              beamCount = lengths.length
+
+              // Round up to nearest whole number
+              lengths.forEach((l) => {
+                const rounded = Math.ceil(l)
+                vigotaGroups[rounded] = (vigotaGroups[rounded] || 0) + 1
+              })
+
+              sortedLengths = Object.keys(vigotaGroups)
+                .map(Number)
+                .sort((a, b) => b - a)
+            } else if (joistArrow && !slab.properties?.slabConfig) {
+              // Fallback if config is missing but arrow exists
               beamCount = getSlabJoistCount(slab, joistArrow)
             }
 
@@ -90,11 +108,24 @@ export const MaterialsPanel: React.FC = () => {
                         : 'EPS'}
                     </div>
                     {beamCount > 0 ? (
-                      <div className="font-semibold text-primary">
-                        {beamCount} Vigotas
+                      <div className="mt-2">
+                        <div className="font-semibold text-primary mb-1">
+                          {beamCount} Vigotas
+                        </div>
+                        <div className="grid grid-cols-2 gap-1">
+                          {sortedLengths.map((len) => (
+                            <div
+                              key={len}
+                              className="flex justify-between bg-white px-2 py-0.5 rounded border border-gray-100"
+                            >
+                              <span>{vigotaGroups[len]}x</span>
+                              <span className="font-medium">{len}m</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ) : (
-                      <div className="text-amber-600">
+                      <div className="text-amber-600 mt-1">
                         Defina a direção (Vigota)
                       </div>
                     )}

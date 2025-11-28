@@ -200,10 +200,6 @@ export const Sidebar: React.FC = () => {
             <text x="${padding}" y="${currentY}" font-family="Inter, sans-serif" font-size="11" fill="#64748b">Vigotas: ${data.vigotaSummary}</text>
           `
         currentY += lineHeight
-      } else {
-        // Optional: Placeholder if no vigotas defined
-        // svgContent += `<text x="${padding}" y="${currentY}" font-family="Inter, sans-serif" font-size="11" fill="#94a3b8" font-style="italic">Sem vigotas definidas</text>`
-        // currentY += lineHeight;
       }
 
       // Separator line (optional, or just spacing)
