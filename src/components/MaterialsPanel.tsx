@@ -2,156 +2,92 @@ import React from 'react'
 import { useDrawing } from '@/context/DrawingContext'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
-import {
-  calculatePolygonArea,
-  calculateBoundingBox,
-  isWorldPointInShape,
-  getSlabJoistCount,
-  calculateVigotaLengths,
-} from '@/lib/geometry'
+import { generateSlabReportData } from '@/lib/geometry'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 
 export const MaterialsPanel: React.FC = () => {
   const { shapes } = useDrawing()
+  const reportData = generateSlabReportData(shapes)
 
-  // Filter for slabs (rectangles and polygons)
-  const slabs = shapes.filter(
-    (s) => s.type === 'rectangle' || s.type === 'polygon',
-  )
-
-  const totalArea = slabs.reduce((acc, s) => {
-    const area = s.properties?.area || calculatePolygonArea(s.points)
-    return acc + area
-  }, 0)
+  const totalArea = reportData.reduce((acc, item) => acc + item.area, 0)
 
   return (
     <div className="h-full flex flex-col bg-white w-full">
       <div className="p-4 border-b">
         <h2 className="font-semibold text-lg">Descritivo dos Materiais</h2>
       </div>
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 bg-gray-50/50">
         <div className="p-4 space-y-4">
-          {slabs.length === 0 && (
+          {reportData.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-8">
               Nenhuma laje criada.
             </p>
           )}
-          {slabs.map((slab, index) => {
-            let width = slab.properties?.width
-            let height = slab.properties?.height
-            const area =
-              slab.properties?.area || calculatePolygonArea(slab.points)
-
-            if (!width || !height) {
-              const bbox = calculateBoundingBox(slab.points)
-              width = bbox.width
-              height = bbox.height
-            }
-
-            // Find associated joist arrow
-            const joistArrow = shapes.find(
-              (s) =>
-                s.type === 'arrow' &&
-                s.properties?.isJoist &&
-                isWorldPointInShape(
-                  {
-                    x: (s.points[0].x + s.points[1].x) / 2,
-                    y: (s.points[0].y + s.points[1].y) / 2,
-                  },
-                  slab,
-                ),
-            )
-
-            let beamCount = 0
-            let vigotaGroups: Record<string, number> = {}
-            let sortedLengths: string[] = []
-
-            if (joistArrow && slab.properties?.slabConfig) {
-              const lengths = calculateVigotaLengths(slab, joistArrow)
-              beamCount = lengths.length
-
-              if (slab.type === 'polygon') {
-                // For polygons, round up to nearest 0.10m increment
-                // Example: 2.72 -> 2.80, 2.01 -> 2.10
-                lengths.forEach((l) => {
-                  // Use toFixed(4) to avoid floating point epsilon errors
-                  const val = Number(l.toFixed(4))
-                  const rounded = Math.ceil(val * 10) / 10
-                  const key = rounded.toFixed(2)
-                  vigotaGroups[key] = (vigotaGroups[key] || 0) + 1
-                })
-              } else {
-                // For rectangles, keep exact value (2 decimals)
-                lengths.forEach((l) => {
-                  const val = l.toFixed(2)
-                  vigotaGroups[val] = (vigotaGroups[val] || 0) + 1
-                })
-              }
-
-              sortedLengths = Object.keys(vigotaGroups).sort(
-                (a, b) => Number(b) - Number(a),
-              )
-            } else if (joistArrow && !slab.properties?.slabConfig) {
-              // Fallback if config is missing but arrow exists
-              beamCount = getSlabJoistCount(slab, joistArrow)
-            }
-
-            return (
-              <div key={slab.id} className="text-sm">
-                <div className="font-medium flex items-center justify-between">
-                  <span>
-                    {slab.properties?.label || `Laje ${index + 1}`}
-                    {beamCount > 0 ? ` (${beamCount}vt)` : ''}
-                  </span>
-                  <span className="text-xs text-muted-foreground uppercase">
-                    {slab.type === 'rectangle' ? 'Retangular' : 'Poligonal'}
-                  </span>
+          {reportData.map((item) => (
+            <Card key={item.id} className="shadow-sm border-gray-200">
+              <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  {item.label}
+                  {item.vigotaCount > 0 && (
+                    <Badge variant="secondary" className="text-[10px] h-5 px-1">
+                      {item.vigotaCount} vt
+                    </Badge>
+                  )}
+                </CardTitle>
+                <span className="text-xs text-muted-foreground font-mono">
+                  {item.area.toFixed(2)}m²
+                </span>
+              </CardHeader>
+              <CardContent className="p-3 pt-0">
+                <div className="text-xs text-muted-foreground mb-2">
+                  Dim: {item.width.toFixed(2)}m x {item.height.toFixed(2)}m
                 </div>
-                <div className="text-muted-foreground mt-1">
-                  {width.toFixed(2)}m x {height.toFixed(2)}m ({area.toFixed(2)}
-                  m²)
-                </div>
-                {slab.properties?.slabConfig && (
-                  <div className="mt-2 text-xs text-muted-foreground space-y-1 bg-gray-50 p-2 rounded">
-                    <div>Tipo: {slab.properties.slabConfig.type}</div>
-                    <div>
-                      Material:{' '}
-                      {slab.properties.slabConfig.material === 'ceramic'
-                        ? 'Cerâmica'
-                        : 'EPS'}
+
+                {item.type !== '-' && (
+                  <div className="bg-gray-50 p-2 rounded border border-gray-100 text-xs space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Tipo:</span>
+                      <span className="font-medium">{item.type}</span>
                     </div>
-                    {beamCount > 0 ? (
-                      <div className="mt-2">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Material:</span>
+                      <span className="font-medium">{item.material}</span>
+                    </div>
+                    {item.vigotaDetails.length > 0 ? (
+                      <div className="pt-1 mt-1 border-t border-gray-200">
                         <div className="font-semibold text-primary mb-1">
-                          {beamCount} Vigotas
+                          Vigotas
                         </div>
                         <div className="grid grid-cols-2 gap-1">
-                          {sortedLengths.map((len) => (
+                          {item.vigotaDetails.map((detail) => (
                             <div
-                              key={len}
-                              className="flex justify-between bg-white px-2 py-0.5 rounded border border-gray-100"
+                              key={detail.length}
+                              className="flex justify-between bg-white px-1.5 py-0.5 rounded border border-gray-100"
                             >
-                              <span>{vigotaGroups[len]}x</span>
-                              <span className="font-medium">{len}m</span>
+                              <span>{detail.count}x</span>
+                              <span className="font-medium">
+                                {detail.length}m
+                              </span>
                             </div>
                           ))}
                         </div>
                       </div>
                     ) : (
-                      <div className="text-amber-600 mt-1">
+                      <div className="text-amber-600 mt-1 font-medium">
                         Defina a direção (Vigota)
                       </div>
                     )}
                   </div>
                 )}
-                <Separator className="my-2" />
-              </div>
-            )
-          })}
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </ScrollArea>
-      <div className="p-4 border-t bg-gray-50">
+      <div className="p-4 border-t bg-white">
         <div className="flex justify-between items-center font-bold text-lg">
-          <span>Total</span>
+          <span>Total Geral</span>
           <span>{totalArea.toFixed(2)}m²</span>
         </div>
       </div>

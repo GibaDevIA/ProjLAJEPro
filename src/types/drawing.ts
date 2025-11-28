@@ -44,3 +44,16 @@ export interface SnapResult {
   targetPoint: Point
   distance: number
 }
+
+export interface SlabReportItem {
+  id: string
+  label: string
+  area: number
+  width: number
+  height: number
+  type: string
+  material: string
+  vigotaCount: number
+  vigotaSummary: string
+  vigotaDetails: { length: string; count: number }[]
+}

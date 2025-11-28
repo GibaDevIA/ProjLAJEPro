@@ -22,11 +22,7 @@ import {
   ArrowRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import {
-  calculatePolygonArea,
-  isWorldPointInShape,
-  calculateVigotaLengths,
-} from '@/lib/geometry'
+import { generateSlabReportData } from '@/lib/geometry'
 import { Shape, ViewState } from '@/types/drawing'
 
 export const Sidebar: React.FC = () => {
@@ -77,150 +73,141 @@ export const Sidebar: React.FC = () => {
     svgWidth: number,
     svgHeight: number,
   ) => {
-    const slabs = currentShapes.filter(
-      (s) => s.type === 'rectangle' || s.type === 'polygon',
-    )
-    if (slabs.length === 0) return ''
+    const reportData = generateSlabReportData(currentShapes)
+    if (reportData.length === 0) return ''
 
-    // Calculate Total Area
-    const totalArea = slabs.reduce((acc, s) => {
-      const area = s.properties?.area || calculatePolygonArea(s.points)
-      return acc + area
-    }, 0)
+    const totalArea = reportData.reduce((acc, item) => acc + item.area, 0)
 
-    // Prepare data for the report
-    const reportData = slabs.map((slab, index) => {
-      const area = slab.properties?.area || calculatePolygonArea(slab.points)
-      const label = slab.properties?.label || `Laje ${index + 1}`
-      const type = slab.properties?.slabConfig?.type || '-'
-      const material =
-        slab.properties?.slabConfig?.material === 'ceramic'
-          ? 'Cerâmica'
-          : slab.properties?.slabConfig?.material === 'eps'
-            ? 'EPS'
-            : '-'
-
-      // Find associated joist arrow
-      const joistArrow = currentShapes.find(
-        (s) =>
-          s.type === 'arrow' &&
-          s.properties?.isJoist &&
-          isWorldPointInShape(
-            {
-              x: (s.points[0].x + s.points[1].x) / 2,
-              y: (s.points[0].y + s.points[1].y) / 2,
-            },
-            slab,
-          ),
-      )
-
-      let vigotaSummary = ''
-      let vigotaCount = 0
-
-      if (joistArrow && slab.properties?.slabConfig) {
-        const lengths = calculateVigotaLengths(slab, joistArrow)
-        vigotaCount = lengths.length
-
-        const groups: Record<string, number> = {}
-
-        if (slab.type === 'polygon') {
-          // Polygon: Round up to nearest 0.10m increment
-          lengths.forEach((l) => {
-            const val = Number(l.toFixed(4))
-            const rounded = Math.ceil(val * 10) / 10
-            const key = rounded.toFixed(2)
-            groups[key] = (groups[key] || 0) + 1
-          })
-        } else {
-          // Rectangle: Exact value (2 decimals)
-          lengths.forEach((l) => {
-            const val = l.toFixed(2)
-            groups[val] = (groups[val] || 0) + 1
-          })
-        }
-
-        // Format summary
-        const sortedLengths = Object.keys(groups).sort(
-          (a, b) => Number(b) - Number(a),
-        )
-        vigotaSummary = sortedLengths
-          .map((len) => `${groups[len]}x ${len}m`)
-          .join(', ')
-      }
-
-      return {
-        label,
-        area,
-        type,
-        material,
-        vigotaCount,
-        vigotaSummary,
-      }
-    })
-
-    const tableWidth = 350
-    const padding = 15
-    const lineHeight = 18
+    // Grid Layout Configuration
+    const columns = Math.min(reportData.length, 3)
+    const cellWidth = 220
+    const cellPadding = 10
+    const cellGap = 10
     const headerHeight = 30
     const footerHeight = 30
-    const rowSpacing = 10
+    const titleHeight = 30
 
-    // Calculate total height dynamically
-    let contentHeight = headerHeight
-    reportData.forEach((data) => {
-      contentHeight += lineHeight // First line (Label, Area, Type)
-      if (data.vigotaSummary) {
-        contentHeight += lineHeight // Second line (Vigotas)
+    // Calculate max height needed for a row based on content
+    // We estimate height: Label(20) + Area(20) + Type(20) + Vigotas(variable)
+    // Vigota line height ~15px.
+    // Let's calculate max vigota lines in the dataset to set a uniform height or per row
+    // For simplicity and "organized" look, we'll use a fixed generous height or calculate per item
+    // Let's calculate height per item and take max for the row.
+
+    const getRowHeight = (startIndex: number, count: number) => {
+      let maxH = 100 // Base height
+      for (let i = 0; i < count; i++) {
+        if (startIndex + i < reportData.length) {
+          const item = reportData[startIndex + i]
+          // Estimate lines for vigotas
+          // Vigota summary string length / chars per line?
+          // Or just use vigotaDetails count if we list them?
+          // The summary string "2x 3.00m, 4x 2.50m" wraps.
+          // Approx 30 chars per line.
+          const summaryLines = Math.ceil((item.vigotaSummary.length || 1) / 30)
+          const itemH = 80 + summaryLines * 15
+          if (itemH > maxH) maxH = itemH
+        }
       }
-      contentHeight += rowSpacing
-    })
-    contentHeight += footerHeight + padding * 2
+      return maxH
+    }
 
-    // Position in bottom-right corner
+    const rows = Math.ceil(reportData.length / 3)
+    let totalContentHeight = titleHeight + footerHeight + (rows - 1) * cellGap
+
+    const rowHeights: number[] = []
+    for (let r = 0; r < rows; r++) {
+      const h = getRowHeight(r * 3, 3)
+      rowHeights.push(h)
+      totalContentHeight += h
+    }
+
+    // Total Table Size
+    const tableWidth =
+      columns * cellWidth + (columns > 0 ? (columns - 1) * cellGap : 0)
+    const tableHeight = totalContentHeight + 20 // + padding
+
+    // Position Bottom Right
     const x = svgWidth - tableWidth - 20
-    const y = svgHeight - contentHeight - 20
+    const y = svgHeight - tableHeight - 20
 
     let svgContent = `
         <g transform="translate(${x}, ${y})">
-          <rect width="${tableWidth}" height="${contentHeight}" fill="white" stroke="#e2e8f0" rx="4" />
-          <text x="${padding}" y="${20}" font-family="Inter, sans-serif" font-size="14" font-weight="bold" fill="#0f172a">Relatório de Lajes</text>
-          <line x1="0" y1="${headerHeight}" x2="${tableWidth}" y2="${headerHeight}" stroke="#e2e8f0" />
+          <!-- Background -->
+          <rect width="${tableWidth}" height="${tableHeight}" fill="white" stroke="#e2e8f0" rx="4" filter="drop-shadow(0 4px 6px rgb(0 0 0 / 0.1))" />
+          
+          <!-- Title -->
+          <text x="${10}" y="${20}" font-family="Inter, sans-serif" font-size="14" font-weight="bold" fill="#0f172a">Descritivo dos Materiais</text>
+          <line x1="0" y1="${titleHeight}" x2="${tableWidth}" y2="${titleHeight}" stroke="#e2e8f0" />
       `
 
-    let currentY = headerHeight + 15
+    let currentY = titleHeight + 10
 
-    reportData.forEach((data) => {
-      const displayLabel =
-        data.vigotaCount > 0
-          ? `${data.label} (${data.vigotaCount}vt)`
-          : data.label
+    for (let r = 0; r < rows; r++) {
+      const rowH = rowHeights[r]
+      for (let c = 0; c < 3; c++) {
+        const index = r * 3 + c
+        if (index >= reportData.length) break
 
-      // Row 1: Label | Area | Type
-      svgContent += `
-          <text x="${padding}" y="${currentY}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#334155">${displayLabel}</text>
-          <text x="${120}" y="${currentY}" font-family="Inter, sans-serif" font-size="12" fill="#334155">${data.area.toFixed(2)}m²</text>
-          <text x="${200}" y="${currentY}" font-family="Inter, sans-serif" font-size="12" fill="#334155">${data.type} ${data.material}</text>
-        `
-      currentY += lineHeight
+        const item = reportData[index]
+        const cellX = c * (cellWidth + cellGap)
 
-      // Row 2: Vigotas details
-      if (data.vigotaSummary) {
+        // Cell Group
+        svgContent += `<g transform="translate(${cellX}, ${currentY})">`
+
+        // Item Label & Area
         svgContent += `
-            <text x="${padding}" y="${currentY}" font-family="Inter, sans-serif" font-size="11" fill="#64748b">Vigotas: ${data.vigotaSummary}</text>
+            <rect x="0" y="0" width="${cellWidth}" height="${rowH}" fill="#f8fafc" rx="4" stroke="#f1f5f9" />
+            <text x="${10}" y="${20}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#334155">${item.label}</text>
+            <text x="${cellWidth - 10}" y="${20}" text-anchor="end" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#334155">${item.area.toFixed(2)}m²</text>
+            <line x1="5" y1="28" x2="${cellWidth - 5}" y2="28" stroke="#e2e8f0" />
           `
-        currentY += lineHeight
+
+        // Details
+        let detailY = 45
+        svgContent += `
+            <text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="11" fill="#475569">Tipo: ${item.type} | ${item.material}</text>
+          `
+        detailY += 15
+
+        if (item.vigotaCount > 0) {
+          svgContent += `
+              <text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="11" font-weight="bold" fill="#475569">Vigotas (${item.vigotaCount}):</text>
+            `
+          detailY += 15
+
+          // Wrap text logic for SVG is manual
+          const words = item.vigotaSummary.split(' ')
+          let line = ''
+          words.forEach((word) => {
+            if ((line + word).length > 32) {
+              svgContent += `<text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="10" fill="#64748b">${line}</text>`
+              line = word + ' '
+              detailY += 12
+            } else {
+              line += word + ' '
+            }
+          })
+          if (line) {
+            svgContent += `<text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="10" fill="#64748b">${line}</text>`
+          }
+        } else {
+          svgContent += `
+              <text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="10" fill="#d97706" font-style="italic">Sem vigotas definidas</text>
+            `
+        }
+
+        svgContent += `</g>`
       }
+      currentY += rowH + cellGap
+    }
 
-      // Separator line (optional, or just spacing)
-      currentY += rowSpacing
-    })
-
-    // Add Total Section
-    const totalYPos = contentHeight - padding
+    // Footer (Total)
+    const footerY = tableHeight - footerHeight + 20
     svgContent += `
-          <line x1="0" y1="${totalYPos - 25}" x2="${tableWidth}" y2="${totalYPos - 25}" stroke="#e2e8f0" />
-          <text x="${padding}" y="${totalYPos}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Total Geral</text>
-          <text x="${120}" y="${totalYPos}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">${totalArea.toFixed(2)}m²</text>
+          <line x1="0" y1="${tableHeight - footerHeight}" x2="${tableWidth}" y2="${tableHeight - footerHeight}" stroke="#e2e8f0" />
+          <text x="${10}" y="${footerY}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Total Geral</text>
+          <text x="${tableWidth - 10}" y="${footerY}" text-anchor="end" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">${totalArea.toFixed(2)}m²</text>
       `
 
     svgContent += `</g>`
