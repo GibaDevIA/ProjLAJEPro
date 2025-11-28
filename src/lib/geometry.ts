@@ -394,9 +394,9 @@ export function calculateVigotaLengths(
   if (!slab.properties?.slabConfig) return []
   const config = slab.properties.slabConfig
   const interEixoMeters = (config.interEixo || 42) / 100
-  const beamWidthMeters = (config.beamWidth || 12) / 100
 
   // Get the center lines of the joists
+  // This corresponds exactly to the visual representation (dashed lines)
   const centerLines = generateBeamLines(
     slab.points,
     joistArrow.points[0],
@@ -404,51 +404,10 @@ export function calculateVigotaLengths(
     interEixoMeters,
   )
 
+  // Calculate length of each line segment directly
   return centerLines.map((line) => {
     const p1 = line[0]
     const p2 = line[1]
-    const centerLen = calculateLineLength(p1, p2)
-
-    // For polygons, we want to ensure we account for the full width of the joist.
-    // If the joist is cut at an angle, one side might be longer than the center.
-    // We calculate the length at the center, and at +/- half width.
-    if (slab.type === 'polygon') {
-      const dx = p2.x - p1.x
-      const dy = p2.y - p1.y
-      const len = Math.sqrt(dx * dx + dy * dy)
-      if (len === 0) return 0
-
-      const dir = { x: dx / len, y: dy / len }
-      const perp = { x: -dir.y, y: dir.x }
-      const halfWidth = beamWidthMeters / 2
-
-      const origin1 = {
-        x: p1.x + perp.x * halfWidth,
-        y: p1.y + perp.y * halfWidth,
-      }
-      const origin2 = {
-        x: p1.x - perp.x * halfWidth,
-        y: p1.y - perp.y * halfWidth,
-      }
-
-      // Helper to get max segment length from intersections
-      const getMaxSeg = (ts: number[]) => {
-        let maxL = 0
-        for (let i = 0; i < ts.length; i += 2) {
-          if (i + 1 < ts.length) maxL = Math.max(maxL, ts[i + 1] - ts[i])
-        }
-        return maxL
-      }
-
-      const t1 = getRayPolygonIntersections(slab.points, origin1, dir)
-      const t2 = getRayPolygonIntersections(slab.points, origin2, dir)
-
-      const len1 = getMaxSeg(t1)
-      const len2 = getMaxSeg(t2)
-
-      return Math.max(centerLen, len1, len2)
-    }
-
-    return centerLen
+    return calculateLineLength(p1, p2)
   })
 }
