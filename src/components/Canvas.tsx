@@ -72,6 +72,7 @@ export const Canvas: React.FC = () => {
   const [snapPoint, setSnapPoint] = useState<{
     point: Point
     targetPoint: Point
+    type: 'vertex' | 'edge' | 'grid'
   } | null>(null)
 
   const initializedRef = useRef(false)
@@ -366,7 +367,7 @@ export const Canvas: React.FC = () => {
         y: p.y + dyWorld,
       }))
 
-      let bestSnap: { delta: Point; target: Point } | null = null
+      let bestSnap: { delta: Point; target: Point; type: any } | null = null
       let minSnapDist = 8
 
       for (const p of proposedPoints) {
@@ -385,7 +386,11 @@ export const Canvas: React.FC = () => {
             x: snap.point.x - p.x,
             y: snap.point.y - p.y,
           }
-          bestSnap = { delta: adjustment, target: snap.targetPoint }
+          bestSnap = {
+            delta: adjustment,
+            target: snap.targetPoint,
+            type: snap.type,
+          }
         }
       }
 
@@ -398,6 +403,7 @@ export const Canvas: React.FC = () => {
         setSnapPoint({
           point: screenToWorld(bestSnap.target, view),
           targetPoint: bestSnap.target,
+          type: bestSnap.type,
         })
       } else {
         setSnapPoint(null)
@@ -891,9 +897,9 @@ export const Canvas: React.FC = () => {
                 <circle
                   cx={snapPoint.targetPoint.x}
                   cy={snapPoint.targetPoint.y}
-                  r={8}
+                  r={snapPoint.type === 'edge' ? 6 : 8}
                   fill="none"
-                  stroke="#dc3545"
+                  stroke={snapPoint.type === 'edge' ? '#f59e0b' : '#dc3545'}
                   strokeWidth={2}
                   className="animate-ping"
                 />
@@ -902,8 +908,8 @@ export const Canvas: React.FC = () => {
                 <circle
                   cx={snapPoint.targetPoint.x}
                   cy={snapPoint.targetPoint.y}
-                  r={4}
-                  fill="#dc3545"
+                  r={snapPoint.type === 'edge' ? 3 : 4}
+                  fill={snapPoint.type === 'edge' ? '#f59e0b' : '#dc3545'}
                 />
               )}
             </svg>

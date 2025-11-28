@@ -26,17 +26,21 @@ export function distance(p1: Point, p2: Point): number {
   return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2))
 }
 
-// Helper to get distance from point to line segment
-function distanceToSegment(p: Point, v: Point, w: Point): number {
-  const l2 = distance(v, w) ** 2
-  if (l2 === 0) return distance(p, v)
+export function getClosestPointOnSegment(p: Point, v: Point, w: Point): Point {
+  const l2 = Math.pow(w.x - v.x, 2) + Math.pow(w.y - v.y, 2)
+  if (l2 === 0) return v
   let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2
   t = Math.max(0, Math.min(1, t))
-  const projection = {
+  return {
     x: v.x + t * (w.x - v.x),
     y: v.y + t * (w.y - v.y),
   }
-  return distance(p, projection)
+}
+
+// Helper to get distance from point to line segment
+function distanceToSegment(p: Point, v: Point, w: Point): number {
+  const closest = getClosestPointOnSegment(p, v, w)
+  return distance(p, closest)
 }
 
 // Check if point is inside polygon using ray casting
@@ -131,11 +135,50 @@ export function getSnapPoint(
         point: vertex.point, // The world coordinate of the snap target
         targetPoint: screenVertex, // The screen coordinate for visual feedback
         distance: dist,
+        type: 'vertex',
       }
     }
   }
 
-  // 2. Snap to Grid
+  if (closest) return closest
+
+  // 2. Snap to Edges
+  shapes.forEach((shape) => {
+    if (excludeShapeIds.includes(shape.id)) return
+    if (['line', 'rectangle', 'polygon'].includes(shape.type)) {
+      const numSegments =
+        shape.type === 'line' ? shape.points.length - 1 : shape.points.length
+
+      for (let i = 0; i < numSegments; i++) {
+        const p1 = shape.points[i]
+        const p2 = shape.points[(i + 1) % shape.points.length]
+
+        const p1Screen = worldToScreen(p1, view)
+        const p2Screen = worldToScreen(p2, view)
+
+        const closestScreen = getClosestPointOnSegment(
+          cursorScreenPos,
+          p1Screen,
+          p2Screen,
+        )
+        const dist = distance(cursorScreenPos, closestScreen)
+
+        if (dist < minDist) {
+          minDist = dist
+          closest = {
+            point: screenToWorld(closestScreen, view),
+            targetPoint: closestScreen,
+            distance: dist,
+            type: 'edge',
+          }
+        }
+      }
+    }
+  })
+
+  if (closest) return closest
+
+  // 3. Snap to Grid
   if (snapToGrid) {
     const cursorWorld = screenToWorld(cursorScreenPos, view)
     const gridPointWorld = {
@@ -151,6 +194,7 @@ export function getSnapPoint(
         point: gridPointWorld,
         targetPoint: gridPointScreen,
         distance: dist,
+        type: 'grid',
       }
     }
   }
@@ -543,6 +587,7 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
       vigotaSummary,
       vigotaDetails,
       hasExtraVigotas: manualLengths.length > 0,
+      extraVigotaCount: manualLengths.length,
     }
   })
 }

@@ -73,7 +73,7 @@ export const MaterialsPanel: React.FC = () => {
                         </div>
                         {item.hasExtraVigotas && (
                           <div className="mt-2 text-amber-600 font-semibold italic border-t border-amber-100 pt-1">
-                            * Vigotas extra adicionadas
+                            * {item.extraVigotaCount} Vigotas extra adicionadas
                           </div>
                         )}
                       </div>

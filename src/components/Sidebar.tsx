@@ -182,7 +182,7 @@ export const Sidebar: React.FC = () => {
           }
 
           if (item.hasExtraVigotas) {
-            svgContent += `<text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="10" fill="#d97706" font-style="italic">* Vigotas extra adicionadas</text>`
+            svgContent += `<text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="10" fill="#d97706" font-style="italic">* ${item.extraVigotaCount} Vigotas extra adicionadas</text>`
           }
         } else {
           svgContent += `
@@ -307,7 +307,7 @@ export const Sidebar: React.FC = () => {
             <td>${item.vigotaCount}</td>
             <td>
               ${item.vigotaSummary || '-'}
-              ${item.hasExtraVigotas ? '<br/><span style="color: #d97706; font-style: italic; font-size: 10px;">* Vigotas extra adicionadas</span>' : ''}
+              ${item.hasExtraVigotas ? `<br/><span style="color: #d97706; font-style: italic; font-size: 10px;">* ${item.extraVigotaCount} Vigotas extra adicionadas</span>` : ''}
             </td>
           </tr>
         `,

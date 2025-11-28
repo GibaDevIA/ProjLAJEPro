@@ -57,6 +57,7 @@ export interface SnapResult {
   point: Point
   targetPoint: Point
   distance: number
+  type: 'vertex' | 'edge' | 'grid'
 }
 
 export interface SlabReportItem {
@@ -71,4 +72,5 @@ export interface SlabReportItem {
   vigotaSummary: string
   vigotaDetails: { length: string; count: number }[]
   hasExtraVigotas: boolean
+  extraVigotaCount: number
 }
