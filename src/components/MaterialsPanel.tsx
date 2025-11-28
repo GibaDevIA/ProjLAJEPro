@@ -1,7 +1,6 @@
 import React from 'react'
 import { useDrawing } from '@/context/DrawingContext'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { generateSlabReportData } from '@/lib/geometry'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -13,11 +12,11 @@ export const MaterialsPanel: React.FC = () => {
   const totalArea = reportData.reduce((acc, item) => acc + item.area, 0)
 
   return (
-    <div className="h-full flex flex-col bg-white w-full">
-      <div className="p-4 border-b">
+    <div className="h-full flex flex-col bg-blue-50 w-full">
+      <div className="p-4 border-b bg-blue-50">
         <h2 className="font-semibold text-lg">Descritivo dos Materiais</h2>
       </div>
-      <ScrollArea className="flex-1 bg-gray-50/50">
+      <ScrollArea className="flex-1 bg-blue-50">
         <div className="p-4 space-y-4">
           {reportData.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-8">
@@ -25,7 +24,7 @@ export const MaterialsPanel: React.FC = () => {
             </p>
           )}
           {reportData.map((item) => (
-            <Card key={item.id} className="shadow-sm border-gray-200">
+            <Card key={item.id} className="shadow-sm border-gray-200 bg-white">
               <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
                   {item.label}
@@ -85,7 +84,7 @@ export const MaterialsPanel: React.FC = () => {
           ))}
         </div>
       </ScrollArea>
-      <div className="p-4 border-t bg-white">
+      <div className="p-4 border-t bg-blue-50">
         <div className="flex justify-between items-center font-bold text-lg">
           <span>Total Geral</span>
           <span>{totalArea.toFixed(2)}m²</span>

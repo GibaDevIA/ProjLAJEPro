@@ -12,10 +12,8 @@ import {
   FolderOpen,
   Grid3X3,
   Trash2,
-  ArrowUpRight,
   FileText,
   FileImage,
-  Square,
   ArrowUp,
   ArrowDown,
   ArrowLeft,
@@ -42,6 +40,7 @@ export const Sidebar: React.FC = () => {
     shapes,
     activeShapeId,
     updateShape,
+    removeShape,
   } = useDrawing()
 
   const fileInputRef = React.useRef<HTMLInputElement>(null)
@@ -120,14 +119,14 @@ export const Sidebar: React.FC = () => {
     const y = svgHeight - tableHeight - 20
 
     let svgContent = `
-        <g transform="translate(${x}, ${y})">
-          <!-- Background -->
-          <rect width="${tableWidth}" height="${tableHeight}" fill="white" stroke="#e2e8f0" rx="4" filter="drop-shadow(0 4px 6px rgb(0 0 0 / 0.1))" />
-          
-          <!-- Title -->
-          <text x="${10}" y="${20}" font-family="Inter, sans-serif" font-size="14" font-weight="bold" fill="#0f172a">Descritivo dos Materiais</text>
-          <line x1="0" y1="${titleHeight}" x2="${tableWidth}" y2="${titleHeight}" stroke="#e2e8f0" />
-      `
+          <g transform="translate(${x}, ${y})">
+            <!-- Background -->
+            <rect width="${tableWidth}" height="${tableHeight}" fill="white" stroke="#e2e8f0" rx="4" filter="drop-shadow(0 4px 6px rgb(0 0 0 / 0.1))" />
+            
+            <!-- Title -->
+            <text x="${10}" y="${20}" font-family="Inter, sans-serif" font-size="14" font-weight="bold" fill="#0f172a">Descritivo dos Materiais</text>
+            <line x1="0" y1="${titleHeight}" x2="${tableWidth}" y2="${titleHeight}" stroke="#e2e8f0" />
+        `
 
     let currentY = titleHeight + 10
 
@@ -145,23 +144,23 @@ export const Sidebar: React.FC = () => {
 
         // Item Label & Area
         svgContent += `
-            <rect x="0" y="0" width="${cellWidth}" height="${rowH}" fill="#f8fafc" rx="4" stroke="#f1f5f9" />
-            <text x="${10}" y="${20}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#334155">${item.label}</text>
-            <text x="${cellWidth - 10}" y="${20}" text-anchor="end" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#334155">${item.area.toFixed(2)}m²</text>
-            <line x1="5" y1="28" x2="${cellWidth - 5}" y2="28" stroke="#e2e8f0" />
-          `
+              <rect x="0" y="0" width="${cellWidth}" height="${rowH}" fill="#f8fafc" rx="4" stroke="#f1f5f9" />
+              <text x="${10}" y="${20}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#334155">${item.label}</text>
+              <text x="${cellWidth - 10}" y="${20}" text-anchor="end" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#334155">${item.area.toFixed(2)}m²</text>
+              <line x1="5" y1="28" x2="${cellWidth - 5}" y2="28" stroke="#e2e8f0" />
+            `
 
         // Details
         let detailY = 45
         svgContent += `
-            <text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="11" fill="#475569">Tipo: ${item.type} | ${item.material}</text>
-          `
+              <text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="11" fill="#475569">Tipo: ${item.type} | ${item.material}</text>
+            `
         detailY += 15
 
         if (item.vigotaCount > 0) {
           svgContent += `
-              <text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="11" font-weight="bold" fill="#475569">Vigotas (${item.vigotaCount}):</text>
-            `
+                <text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="11" font-weight="bold" fill="#475569">Vigotas (${item.vigotaCount}):</text>
+              `
           detailY += 15
 
           // Wrap text logic for SVG is manual
@@ -181,8 +180,8 @@ export const Sidebar: React.FC = () => {
           }
         } else {
           svgContent += `
-              <text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="10" fill="#d97706" font-style="italic">Sem vigotas definidas</text>
-            `
+                <text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="10" fill="#d97706" font-style="italic">Sem vigotas definidas</text>
+              `
         }
 
         svgContent += `</g>`
@@ -193,10 +192,10 @@ export const Sidebar: React.FC = () => {
     // Footer (Total)
     const footerY = tableHeight - footerHeight + 20
     svgContent += `
-          <line x1="0" y1="${tableHeight - footerHeight}" x2="${tableWidth}" y2="${tableHeight - footerHeight}" stroke="#e2e8f0" />
-          <text x="${10}" y="${footerY}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Total Geral</text>
-          <text x="${tableWidth - 10}" y="${footerY}" text-anchor="end" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">${totalArea.toFixed(2)}m²</text>
-      `
+            <line x1="0" y1="${tableHeight - footerHeight}" x2="${tableWidth}" y2="${tableHeight - footerHeight}" stroke="#e2e8f0" />
+            <text x="${10}" y="${footerY}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Total Geral</text>
+            <text x="${tableWidth - 10}" y="${footerY}" text-anchor="end" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">${totalArea.toFixed(2)}m²</text>
+        `
 
     svgContent += `</g>`
     return svgContent
@@ -294,149 +293,149 @@ export const Sidebar: React.FC = () => {
     const reportRows = reportData
       .map(
         (item) => `
-      <tr>
-        <td>${item.label}</td>
-        <td>${item.area.toFixed(2)} m²</td>
-        <td>${item.type}</td>
-        <td>${item.material === 'ceramic' ? 'Cerâmica' : item.material === 'eps' ? 'EPS' : item.material}</td>
-        <td>${item.vigotaCount}</td>
-        <td>${item.vigotaSummary || '-'}</td>
-      </tr>
-    `,
+        <tr>
+          <td>${item.label}</td>
+          <td>${item.area.toFixed(2)} m²</td>
+          <td>${item.type}</td>
+          <td>${item.material === 'ceramic' ? 'Cerâmica' : item.material === 'eps' ? 'EPS' : item.material}</td>
+          <td>${item.vigotaCount}</td>
+          <td>${item.vigotaSummary || '-'}</td>
+        </tr>
+      `,
       )
       .join('')
 
     const reportHTML = `
-      <div class="print-page page-break">
-        <div class="header">Descritivo dos Materiais</div>
-        <div class="report-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Elemento</th>
-                <th>Área</th>
-                <th>Tipo</th>
-                <th>Material</th>
-                <th>Qtd. Vigotas</th>
-                <th>Detalhe Vigotas</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${reportRows}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colspan="1" style="font-weight:bold">Total Geral</td>
-                <td style="font-weight:bold">${totalArea.toFixed(2)} m²</td>
-                <td colspan="4"></td>
-              </tr>
-            </tfoot>
-          </table>
+        <div class="print-page page-break">
+          <div class="header">Descritivo dos Materiais</div>
+          <div class="report-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Elemento</th>
+                  <th>Área</th>
+                  <th>Tipo</th>
+                  <th>Material</th>
+                  <th>Qtd. Vigotas</th>
+                  <th>Detalhe Vigotas</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${reportRows}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="1" style="font-weight:bold">Total Geral</td>
+                  <td style="font-weight:bold">${totalArea.toFixed(2)} m²</td>
+                  <td colspan="4"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
-      </div>
-    `
+      `
 
     // 3. Open Print Window
     const printWindow = window.open('', '_blank')
     if (printWindow) {
       printWindow.document.write(`
-        <html>
-          <head>
-            <title>Projeto - ProjeLAJE</title>
-            <style>
-              @page { size: landscape; margin: 0; }
-              body { margin: 0; font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
-              
-              .print-page {
-                width: 100vw;
-                height: 100vh;
-                position: relative;
-                display: flex;
-                flex-direction: column;
-                padding: 20px;
-                box-sizing: border-box;
-              }
-              
-              .page-break {
-                page-break-before: always;
-              }
-
-              .header {
-                text-align: center;
-                font-size: 24px;
-                font-weight: bold;
-                margin-bottom: 10px;
-                padding-bottom: 10px;
-                border-bottom: 2px solid #0f172a;
-                text-transform: uppercase;
-                color: #0f172a;
-              }
-
-              .drawing-container {
-                flex: 1;
-                width: 100%;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                overflow: hidden;
-                border: 1px solid #e2e8f0;
-                border-radius: 8px;
-              }
-
-              /* Report Table Styles */
-              .report-container {
-                width: 100%;
-                margin-top: 20px;
-              }
-              table {
-                width: 100%;
-                border-collapse: collapse;
-                font-size: 12px;
-              }
-              th, td {
-                border: 1px solid #e2e8f0;
-                padding: 8px 12px;
-                text-align: left;
-                color: #334155;
-              }
-              th {
-                background-color: #f8fafc;
-                font-weight: bold;
-                color: #0f172a;
-              }
-              tr:nth-child(even) {
-                background-color: #f8fafc;
-              }
-              tfoot td {
-                background-color: #f1f5f9;
-                border-top: 2px solid #cbd5e1;
-                color: #0f172a;
-              }
-            </style>
-          </head>
-          <body>
-            <!-- Page 1: Drawing -->
-            <div class="print-page">
-              <div class="header">Croqui de Montagem Laje</div>
-              <div class="drawing-container">
-                ${svgString}
+          <html>
+            <head>
+              <title>Projeto - ProjeLAJE</title>
+              <style>
+                @page { size: landscape; margin: 0; }
+                body { margin: 0; font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
+                
+                .print-page {
+                  width: 100vw;
+                  height: 100vh;
+                  position: relative;
+                  display: flex;
+                  flex-direction: column;
+                  padding: 20px;
+                  box-sizing: border-box;
+                }
+                
+                .page-break {
+                  page-break-before: always;
+                }
+  
+                .header {
+                  text-align: center;
+                  font-size: 24px;
+                  font-weight: bold;
+                  margin-bottom: 10px;
+                  padding-bottom: 10px;
+                  border-bottom: 2px solid #0f172a;
+                  text-transform: uppercase;
+                  color: #0f172a;
+                }
+  
+                .drawing-container {
+                  flex: 1;
+                  width: 100%;
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  overflow: hidden;
+                  border: 1px solid #e2e8f0;
+                  border-radius: 8px;
+                }
+  
+                /* Report Table Styles */
+                .report-container {
+                  width: 100%;
+                  margin-top: 20px;
+                }
+                table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  font-size: 12px;
+                }
+                th, td {
+                  border: 1px solid #e2e8f0;
+                  padding: 8px 12px;
+                  text-align: left;
+                  color: #334155;
+                }
+                th {
+                  background-color: #f8fafc;
+                  font-weight: bold;
+                  color: #0f172a;
+                }
+                tr:nth-child(even) {
+                  background-color: #f8fafc;
+                }
+                tfoot td {
+                  background-color: #f1f5f9;
+                  border-top: 2px solid #cbd5e1;
+                  color: #0f172a;
+                }
+              </style>
+            </head>
+            <body>
+              <!-- Page 1: Drawing -->
+              <div class="print-page">
+                <div class="header">Croqui de Montagem Laje</div>
+                <div class="drawing-container">
+                  ${svgString}
+                </div>
               </div>
-            </div>
-
-            <!-- Page 2: Report -->
-            ${reportHTML}
-
-            <script>
-              window.onload = () => {
-                setTimeout(() => {
-                  window.print();
-                  window.onafterprint = () => window.close();
-                }, 500);
-              }
-            </script>
-          </body>
-        </html>
-      `)
+  
+              <!-- Page 2: Report -->
+              ${reportHTML}
+  
+              <script>
+                window.onload = () => {
+                  setTimeout(() => {
+                    window.print();
+                    window.onafterprint = () => window.close();
+                  }, 500);
+                }
+              </script>
+            </body>
+          </html>
+        `)
       printWindow.document.close()
     } else {
       toast.error('Permita popups para exportar PDF.')
@@ -522,34 +521,15 @@ export const Sidebar: React.FC = () => {
   }
 
   return (
-    <ScrollArea className="h-full w-full bg-white border-r border-border no-print">
+    <ScrollArea className="h-full w-full bg-blue-50 border-r border-border no-print">
       <div className="p-4 space-y-6">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold tracking-tight">Ferramentas</h2>
           <p className="text-sm text-muted-foreground">Opções Adicionais</p>
         </div>
 
-        <div className="grid grid-cols-1 gap-2">
-          <Button
-            variant={tool === 'rectangle' ? 'default' : 'outline'}
-            className="justify-start"
-            onClick={() => setTool('rectangle')}
-          >
-            <Square className="mr-2 h-4 w-4" />
-            Lançar Laje
-          </Button>
-          <Button
-            variant={tool === 'slab_joist' ? 'default' : 'outline'}
-            className="justify-start"
-            onClick={() => setTool('slab_joist')}
-          >
-            <ArrowUpRight className="mr-2 h-4 w-4" />
-            Lançar Vigota
-          </Button>
-        </div>
-
         {tool === 'rectangle' && (
-          <div className="p-4 border rounded-md bg-gray-50 space-y-4 animate-fade-in">
+          <div className="p-4 border rounded-md bg-white/50 space-y-4 animate-fade-in">
             <h3 className="font-medium text-sm">Definir Dimensões</h3>
             <div className="space-y-2">
               <div className="space-y-1">
@@ -602,7 +582,7 @@ export const Sidebar: React.FC = () => {
         )}
 
         {activeShapeId && (
-          <div className="p-4 border rounded-md bg-gray-50 space-y-4 animate-fade-in">
+          <div className="p-4 border rounded-md bg-white/50 space-y-4 animate-fade-in">
             <h3 className="font-medium text-sm">Mover Seleção</h3>
             <div className="space-y-2">
               <Label htmlFor="move-dist" className="text-xs">
@@ -623,7 +603,7 @@ export const Sidebar: React.FC = () => {
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8"
+                className="h-8 w-8 bg-white"
                 onClick={() => handleMoveShape('up')}
               >
                 <ArrowUp className="h-4 w-4" />
@@ -632,7 +612,7 @@ export const Sidebar: React.FC = () => {
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8"
+                className="h-8 w-8 bg-white"
                 onClick={() => handleMoveShape('left')}
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -640,7 +620,7 @@ export const Sidebar: React.FC = () => {
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8"
+                className="h-8 w-8 bg-white"
                 onClick={() => handleMoveShape('down')}
               >
                 <ArrowDown className="h-4 w-4" />
@@ -648,12 +628,21 @@ export const Sidebar: React.FC = () => {
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8"
+                className="h-8 w-8 bg-white"
                 onClick={() => handleMoveShape('right')}
               >
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="w-full mt-2"
+              onClick={() => activeShapeId && removeShape(activeShapeId)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Excluir
+            </Button>
           </div>
         )}
 
@@ -665,6 +654,7 @@ export const Sidebar: React.FC = () => {
             <Button
               variant="outline"
               size="icon"
+              className="bg-white"
               onClick={() => handleZoom(10)}
             >
               <ZoomIn className="h-4 w-4" />
@@ -672,6 +662,7 @@ export const Sidebar: React.FC = () => {
             <Button
               variant="outline"
               size="icon"
+              className="bg-white"
               onClick={() => handleZoom(-10)}
             >
               <ZoomOut className="h-4 w-4" />
@@ -679,6 +670,7 @@ export const Sidebar: React.FC = () => {
             <Button
               variant={gridVisible ? 'secondary' : 'outline'}
               size="icon"
+              className={gridVisible ? '' : 'bg-white'}
               onClick={() => setGridVisible(!gridVisible)}
             >
               <Grid3X3 className="h-4 w-4" />
@@ -688,6 +680,7 @@ export const Sidebar: React.FC = () => {
             <Label>Escala (px/m)</Label>
             <Input
               type="number"
+              className="bg-white"
               value={Math.round(view.scale)}
               onChange={(e) =>
                 setView((prev) => ({ ...prev, scale: Number(e.target.value) }))
@@ -703,7 +696,7 @@ export const Sidebar: React.FC = () => {
           <div className="grid grid-cols-1 gap-2">
             <Button
               variant="outline"
-              className="justify-start"
+              className="justify-start bg-white"
               onClick={exportToJSON}
             >
               <Save className="mr-2 h-4 w-4" />
@@ -711,7 +704,7 @@ export const Sidebar: React.FC = () => {
             </Button>
             <Button
               variant="outline"
-              className="justify-start"
+              className="justify-start bg-white"
               onClick={() => fileInputRef.current?.click()}
             >
               <FolderOpen className="mr-2 h-4 w-4" />
@@ -728,7 +721,7 @@ export const Sidebar: React.FC = () => {
             />
             <Button
               variant="outline"
-              className="justify-start"
+              className="justify-start bg-white"
               onClick={handleExportJPG}
             >
               <FileImage className="mr-2 h-4 w-4" />
@@ -736,7 +729,7 @@ export const Sidebar: React.FC = () => {
             </Button>
             <Button
               variant="outline"
-              className="justify-start"
+              className="justify-start bg-white"
               onClick={handleExportPDF}
             >
               <FileText className="mr-2 h-4 w-4" />

@@ -47,6 +47,58 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
       return 0
     }, [shape, joistArrow])
 
+    if (shape.type === 'dimension') {
+      const p1 = screenPoints[0]
+      const p2 = screenPoints[1]
+      const length =
+        shape.properties?.length ??
+        calculateLineLength(shape.points[0], shape.points[1])
+      const midX = (p1.x + p2.x) / 2
+      const midY = (p1.y + p2.y) / 2
+
+      return (
+        <g className="group">
+          {/* Main Dimension Line */}
+          <line
+            x1={p1.x}
+            y1={p1.y}
+            x2={p2.x}
+            y2={p2.y}
+            stroke={isSelected ? '#007bff' : '#333'}
+            strokeWidth={1}
+            markerStart="url(#dim-arrow-start)"
+            markerEnd="url(#dim-arrow-end)"
+          />
+          {/* Extension Lines (small perpendicular ticks) */}
+          {/* For simplicity, we just draw the main line with arrows. 
+                Full CAD dimensioning would require offset logic which is complex. */}
+
+          {/* Text Background */}
+          <rect
+            x={midX - 20}
+            y={midY - 8}
+            width="40"
+            height="16"
+            fill="white"
+            fillOpacity="0.9"
+            rx="2"
+          />
+          {/* Text Value */}
+          <text
+            x={midX}
+            y={midY}
+            dy="4"
+            textAnchor="middle"
+            className="text-[10px] font-bold select-none"
+            fill={isSelected ? '#007bff' : '#333'}
+            style={{ fontSize: '10px', fontFamily: 'Inter' }}
+          >
+            {formatDimension(length)}m
+          </text>
+        </g>
+      )
+    }
+
     if (shape.type === 'arrow') {
       const p1 = screenPoints[0]
       const p2 = screenPoints[1]

@@ -237,6 +237,29 @@ export const Canvas: React.FC = () => {
           const startPoint = snapPoint ? snapPoint.point : worldPos
           setDrawingStart(startPoint)
         }
+      } else if (tool === 'dimension') {
+        if (drawingStart) {
+          // Second click (finish dimension)
+          const endWorld = snapPoint ? snapPoint.point : worldPos
+          const length = calculateLineLength(drawingStart, endWorld)
+          if (length > 0.01) {
+            const newShape: Shape = {
+              id: generateId(),
+              type: 'dimension',
+              points: [drawingStart, endWorld],
+              properties: {
+                length: length,
+              },
+            }
+            addShape(newShape)
+            toast.success('Cota criada.')
+          }
+          setDrawingStart(null)
+        } else {
+          // First click (start dimension)
+          const startPoint = snapPoint ? snapPoint.point : worldPos
+          setDrawingStart(startPoint)
+        }
       } else if (tool === 'slab_joist') {
         if (drawingJoistForSlabId) {
           // We are in "draw arrow" mode for a specific slab
@@ -350,7 +373,7 @@ export const Canvas: React.FC = () => {
       return
     }
 
-    if (tool === 'line' || tool === 'rectangle') {
+    if (tool === 'line' || tool === 'rectangle' || tool === 'dimension') {
       const snap = getSnapPoint(mousePos, shapes, view, [], gridVisible)
       setSnapPoint(snap)
     } else {
@@ -621,6 +644,38 @@ export const Canvas: React.FC = () => {
         </g>
       )
     }
+    if (tool === 'dimension' && drawingStart && currentMousePos) {
+      const startScreen = worldToScreen(drawingStart, view)
+      const endScreen = snapPoint ? snapPoint.targetPoint : currentMousePos
+      const currentWorld = snapPoint
+        ? snapPoint.point
+        : screenToWorld(currentMousePos, view)
+      const length = calculateLineLength(drawingStart, currentWorld)
+
+      return (
+        <g>
+          <line
+            x1={startScreen.x}
+            y1={startScreen.y}
+            x2={endScreen.x}
+            y2={endScreen.y}
+            stroke="#f59e0b"
+            strokeWidth={1}
+            strokeDasharray="5 5"
+          />
+          <text
+            x={(startScreen.x + endScreen.x) / 2}
+            y={(startScreen.y + endScreen.y) / 2 - 10}
+            textAnchor="middle"
+            className="text-xs font-bold"
+            fill="#f59e0b"
+            style={{ fontSize: '12px', fontFamily: 'Inter' }}
+          >
+            {length.toFixed(2)}m
+          </text>
+        </g>
+      )
+    }
     if (tool === 'slab_joist' && drawingStart && currentMousePos) {
       const currentWorld = screenToWorld(currentMousePos, view)
       const snappedWorld = getOrthogonalPoint(drawingStart, currentWorld)
@@ -725,6 +780,27 @@ export const Canvas: React.FC = () => {
                   orient="auto"
                 >
                   <polygon points="10 0, 0 3.5, 10 7" fill="#ef4444" />
+                </marker>
+                {/* Dimension Markers */}
+                <marker
+                  id="dim-arrow-end"
+                  markerWidth="8"
+                  markerHeight="8"
+                  refX="8"
+                  refY="4"
+                  orient="auto"
+                >
+                  <path d="M0,0 L8,4 L0,8 L2,4 Z" fill="#333" />
+                </marker>
+                <marker
+                  id="dim-arrow-start"
+                  markerWidth="8"
+                  markerHeight="8"
+                  refX="0"
+                  refY="4"
+                  orient="auto"
+                >
+                  <path d="M8,0 L0,4 L8,8 L6,4 Z" fill="#333" />
                 </marker>
               </defs>
 

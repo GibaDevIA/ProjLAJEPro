@@ -3,7 +3,7 @@ export type Point = {
   y: number
 }
 
-export type ShapeType = 'line' | 'rectangle' | 'polygon' | 'arrow'
+export type ShapeType = 'line' | 'rectangle' | 'polygon' | 'arrow' | 'dimension'
 
 export interface SlabConfig {
   type: 'H8' | 'H12' | 'H16' | 'H20' | 'H25' | 'H30'
@@ -37,7 +37,13 @@ export interface ViewState {
   offset: Point // in pixels
 }
 
-export type ToolType = 'select' | 'line' | 'rectangle' | 'pan' | 'slab_joist'
+export type ToolType =
+  | 'select'
+  | 'line'
+  | 'rectangle'
+  | 'pan'
+  | 'slab_joist'
+  | 'dimension'
 
 export interface SnapResult {
   point: Point
