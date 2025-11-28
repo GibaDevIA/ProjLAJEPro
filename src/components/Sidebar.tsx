@@ -124,10 +124,11 @@ export const Sidebar: React.FC = () => {
         const groups: Record<string, number> = {}
 
         if (slab.type === 'polygon') {
-          // Polygon: Round up to nearest integer
+          // Polygon: Round up to nearest 0.10m increment
           lengths.forEach((l) => {
-            const rounded = Math.ceil(Number(l.toFixed(4)))
-            const key = rounded.toString()
+            const val = Number(l.toFixed(4))
+            const rounded = Math.ceil(val * 10) / 10
+            const key = rounded.toFixed(2)
             groups[key] = (groups[key] || 0) + 1
           })
         } else {
