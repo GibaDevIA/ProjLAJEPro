@@ -12,11 +12,11 @@ export const MaterialsPanel: React.FC = () => {
   const totalArea = reportData.reduce((acc, item) => acc + item.area, 0)
 
   return (
-    <div className="h-full flex flex-col bg-blue-50 w-full">
-      <div className="p-4 border-b bg-blue-50">
+    <div className="h-full flex flex-col bg-gray-50 w-full">
+      <div className="p-4 border-b bg-gray-50">
         <h2 className="font-semibold text-lg">Descritivo dos Materiais</h2>
       </div>
-      <ScrollArea className="flex-1 bg-blue-50">
+      <ScrollArea className="flex-1 bg-gray-50">
         <div className="p-4 space-y-4">
           {reportData.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-8">
@@ -89,7 +89,7 @@ export const MaterialsPanel: React.FC = () => {
           ))}
         </div>
       </ScrollArea>
-      <div className="p-4 border-t bg-blue-50">
+      <div className="p-4 border-t bg-gray-50">
         <div className="flex justify-between items-center font-bold text-lg">
           <span>Total Geral</span>
           <span>{totalArea.toFixed(2)}m²</span>

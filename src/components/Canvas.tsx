@@ -662,7 +662,7 @@ export const Canvas: React.FC = () => {
             y1={startScreen.y}
             x2={endScreen.x}
             y2={endScreen.y}
-            stroke={tool === 'add_vigota' ? '#6b7280' : '#007bff'}
+            stroke={tool === 'add_vigota' ? '#6b7280' : '#334155'}
             strokeWidth={2}
             strokeDasharray="5 5"
             className="animate-pulse"
@@ -671,7 +671,7 @@ export const Canvas: React.FC = () => {
             x={endScreen.x + 10}
             y={endScreen.y + 10}
             className="text-xs font-bold"
-            fill={tool === 'add_vigota' ? '#6b7280' : '#007bff'}
+            fill={tool === 'add_vigota' ? '#6b7280' : '#334155'}
             style={{ fontSize: '12px', fontFamily: 'Inter' }}
           >
             {length.toFixed(2)}m {angle.toFixed(1)}°
@@ -702,7 +702,7 @@ export const Canvas: React.FC = () => {
             height={Math.abs(endScreen.y - startScreen.y)}
             fill="#e0f7fa"
             fillOpacity="0.3"
-            stroke="#007bff"
+            stroke="#334155"
             strokeWidth={2}
             strokeDasharray="5 5"
           />
@@ -710,7 +710,7 @@ export const Canvas: React.FC = () => {
             x={Math.min(startScreen.x, endScreen.x)}
             y={Math.min(startScreen.y, endScreen.y) - 10}
             className="text-xs font-bold"
-            fill="#007bff"
+            fill="#334155"
             style={{ fontSize: '12px', fontFamily: 'Inter' }}
           >
             {width.toFixed(2)}m x {height.toFixed(2)}m

@@ -13,7 +13,7 @@ export default function Layout() {
 
   return (
     <DrawingProvider>
-      <div className="flex h-screen w-full overflow-hidden bg-blue-50 flex-col">
+      <div className="flex h-screen w-full overflow-hidden bg-gray-50 flex-col">
         {/* Top Bar for Desktop */}
         <div className="hidden lg:block w-full z-20">
           <TopBar />
@@ -26,7 +26,7 @@ export default function Layout() {
           </aside>
 
           {/* Mobile Header & Drawer */}
-          <div className="lg:hidden fixed top-0 left-0 right-0 h-14 border-b bg-blue-50 z-20 flex items-center px-4 justify-between no-print">
+          <div className="lg:hidden fixed top-0 left-0 right-0 h-14 border-b bg-gradient-to-r from-gray-100 to-gray-200 z-20 flex items-center px-4 justify-between no-print">
             <div className="flex items-center gap-2">
               <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                 <SheetTrigger asChild>
@@ -38,7 +38,9 @@ export default function Layout() {
                   <Sidebar />
                 </SheetContent>
               </Sheet>
-              <h1 className="font-semibold text-lg">ProjeLAJE1.0</h1>
+              <h1 className="font-bold text-lg font-montserrat text-slate-800">
+                ProjLAJE
+              </h1>
             </div>
             {/* Mobile TopBar equivalent could go here or be inside drawer */}
           </div>
@@ -49,7 +51,7 @@ export default function Layout() {
           </main>
 
           {/* Right Sidebar - Materials Panel */}
-          <aside className="hidden lg:block w-[300px] h-full border-l z-10 bg-blue-50">
+          <aside className="hidden lg:block w-[300px] h-full border-l z-10 bg-gray-50">
             <MaterialsPanel />
           </aside>
         </div>

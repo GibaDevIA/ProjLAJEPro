@@ -78,9 +78,9 @@ export const TopBar: React.FC = () => {
   ] as const
 
   return (
-    <div className="h-20 border-b bg-blue-50 flex items-center justify-center px-4 gap-2 shadow-sm no-print relative overflow-x-auto">
-      <div className="absolute left-4 font-semibold text-lg text-slate-800 hidden xl:block">
-        ProjeLAJE1.0
+    <div className="h-20 border-b bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center px-4 gap-2 shadow-sm no-print relative overflow-x-auto">
+      <div className="absolute left-4 font-bold text-lg text-slate-800 hidden xl:block font-montserrat">
+        ProjLAJE
       </div>
       <div className="flex gap-2 items-center">
         {tools.map((t) => (

@@ -120,14 +120,14 @@ export const Sidebar: React.FC = () => {
     const y = svgHeight - tableHeight - 20
 
     let svgContent = `
-            <g transform="translate(${x}, ${y})">
-              <!-- Background -->
-              <rect width="${tableWidth}" height="${tableHeight}" fill="white" stroke="#e2e8f0" rx="4" filter="drop-shadow(0 4px 6px rgb(0 0 0 / 0.1))" />
-              
-              <!-- Title -->
-              <text x="${10}" y="${20}" font-family="Inter, sans-serif" font-size="14" font-weight="bold" fill="#0f172a">Descritivo dos Materiais</text>
-              <line x1="0" y1="${titleHeight}" x2="${tableWidth}" y2="${titleHeight}" stroke="#e2e8f0" />
-          `
+              <g transform="translate(${x}, ${y})">
+                <!-- Background -->
+                <rect width="${tableWidth}" height="${tableHeight}" fill="white" stroke="#e2e8f0" rx="4" filter="drop-shadow(0 4px 6px rgb(0 0 0 / 0.1))" />
+                
+                <!-- Title -->
+                <text x="${10}" y="${20}" font-family="Inter, sans-serif" font-size="14" font-weight="bold" fill="#0f172a">Descritivo dos Materiais</text>
+                <line x1="0" y1="${titleHeight}" x2="${tableWidth}" y2="${titleHeight}" stroke="#e2e8f0" />
+            `
 
     let currentY = titleHeight + 10
 
@@ -145,23 +145,23 @@ export const Sidebar: React.FC = () => {
 
         // Item Label & Area
         svgContent += `
-                <rect x="0" y="0" width="${cellWidth}" height="${rowH}" fill="#f8fafc" rx="4" stroke="#f1f5f9" />
-                <text x="${10}" y="${20}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#334155">${item.label}</text>
-                <text x="${cellWidth - 10}" y="${20}" text-anchor="end" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#334155">${item.area.toFixed(2)}m²</text>
-                <line x1="5" y1="28" x2="${cellWidth - 5}" y2="28" stroke="#e2e8f0" />
-              `
+                  <rect x="0" y="0" width="${cellWidth}" height="${rowH}" fill="#f8fafc" rx="4" stroke="#f1f5f9" />
+                  <text x="${10}" y="${20}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#334155">${item.label}</text>
+                  <text x="${cellWidth - 10}" y="${20}" text-anchor="end" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#334155">${item.area.toFixed(2)}m²</text>
+                  <line x1="5" y1="28" x2="${cellWidth - 5}" y2="28" stroke="#e2e8f0" />
+                `
 
         // Details
         let detailY = 45
         svgContent += `
-                <text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="11" fill="#475569">Tipo: ${item.type} | ${item.material}</text>
-              `
+                  <text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="11" fill="#475569">Tipo: ${item.type} | ${item.material}</text>
+                `
         detailY += 15
 
         if (item.vigotaCount > 0) {
           svgContent += `
-                  <text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="11" font-weight="bold" fill="#475569">Vigotas (${item.vigotaCount}):</text>
-                `
+                    <text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="11" font-weight="bold" fill="#475569">Vigotas (${item.vigotaCount}):</text>
+                  `
           detailY += 15
 
           // Wrap text logic for SVG is manual
@@ -186,8 +186,8 @@ export const Sidebar: React.FC = () => {
           }
         } else {
           svgContent += `
-                  <text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="10" fill="#d97706" font-style="italic">Sem vigotas definidas</text>
-                `
+                    <text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="10" fill="#d97706" font-style="italic">Sem vigotas definidas</text>
+                  `
         }
 
         svgContent += `</g>`
@@ -198,10 +198,10 @@ export const Sidebar: React.FC = () => {
     // Footer (Total)
     const footerY = tableHeight - footerHeight + 20
     svgContent += `
-              <line x1="0" y1="${tableHeight - footerHeight}" x2="${tableWidth}" y2="${tableHeight - footerHeight}" stroke="#e2e8f0" />
-              <text x="${10}" y="${footerY}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Total Geral</text>
-              <text x="${tableWidth - 10}" y="${footerY}" text-anchor="end" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">${totalArea.toFixed(2)}m²</text>
-          `
+                <line x1="0" y1="${tableHeight - footerHeight}" x2="${tableWidth}" y2="${tableHeight - footerHeight}" stroke="#e2e8f0" />
+                <text x="${10}" y="${footerY}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Total Geral</text>
+                <text x="${tableWidth - 10}" y="${footerY}" text-anchor="end" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">${totalArea.toFixed(2)}m²</text>
+            `
 
     svgContent += `</g>`
     return svgContent
@@ -299,152 +299,152 @@ export const Sidebar: React.FC = () => {
     const reportRows = reportData
       .map(
         (item) => `
-          <tr>
-            <td>${item.label}</td>
-            <td>${item.area.toFixed(2)} m²</td>
-            <td>${item.type}</td>
-            <td>${item.material === 'ceramic' ? 'Cerâmica' : item.material === 'eps' ? 'EPS' : item.material}</td>
-            <td>${item.vigotaCount}</td>
-            <td>
-              ${item.vigotaSummary || '-'}
-              ${item.hasExtraVigotas ? `<br/><span style="color: #d97706; font-style: italic; font-size: 10px;">* ${item.extraVigotaCount} Vigotas extra adicionadas</span>` : ''}
-            </td>
-          </tr>
-        `,
+            <tr>
+              <td>${item.label}</td>
+              <td>${item.area.toFixed(2)} m²</td>
+              <td>${item.type}</td>
+              <td>${item.material === 'ceramic' ? 'Cerâmica' : item.material === 'eps' ? 'EPS' : item.material}</td>
+              <td>${item.vigotaCount}</td>
+              <td>
+                ${item.vigotaSummary || '-'}
+                ${item.hasExtraVigotas ? `<br/><span style="color: #d97706; font-style: italic; font-size: 10px;">* ${item.extraVigotaCount} Vigotas extra adicionadas</span>` : ''}
+              </td>
+            </tr>
+          `,
       )
       .join('')
 
     const reportHTML = `
-          <div class="print-page page-break">
-            <div class="header">Descritivo dos Materiais</div>
-            <div class="report-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Elemento</th>
-                    <th>Área</th>
-                    <th>Tipo</th>
-                    <th>Material</th>
-                    <th>Qtd. Vigotas</th>
-                    <th>Detalhe Vigotas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${reportRows}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td colspan="1" style="font-weight:bold">Total Geral</td>
-                    <td style="font-weight:bold">${totalArea.toFixed(2)} m²</td>
-                    <td colspan="4"></td>
-                  </tr>
-                </tfoot>
-              </table>
+            <div class="print-page page-break">
+              <div class="header">Descritivo dos Materiais</div>
+              <div class="report-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Elemento</th>
+                      <th>Área</th>
+                      <th>Tipo</th>
+                      <th>Material</th>
+                      <th>Qtd. Vigotas</th>
+                      <th>Detalhe Vigotas</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${reportRows}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colspan="1" style="font-weight:bold">Total Geral</td>
+                      <td style="font-weight:bold">${totalArea.toFixed(2)} m²</td>
+                      <td colspan="4"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </div>
-          </div>
-        `
+          `
 
     // 3. Open Print Window
     const printWindow = window.open('', '_blank')
     if (printWindow) {
       printWindow.document.write(`
-            <html>
-              <head>
-                <title>Projeto - ProjeLAJE</title>
-                <style>
-                  @page { size: landscape; margin: 0; }
-                  body { margin: 0; font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
-                  
-                  .print-page {
-                    width: 100vw;
-                    height: 100vh;
-                    position: relative;
-                    display: flex;
-                    flex-direction: column;
-                    padding: 20px;
-                    box-sizing: border-box;
-                  }
-                  
-                  .page-break {
-                    page-break-before: always;
-                  }
-    
-                  .header {
-                    text-align: center;
-                    font-size: 24px;
-                    font-weight: bold;
-                    margin-bottom: 10px;
-                    padding-bottom: 10px;
-                    border-bottom: 2px solid #0f172a;
-                    text-transform: uppercase;
-                    color: #0f172a;
-                  }
-    
-                  .drawing-container {
-                    flex: 1;
-                    width: 100%;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    overflow: hidden;
-                    border: 1px solid #e2e8f0;
-                    border-radius: 8px;
-                  }
-    
-                  /* Report Table Styles */
-                  .report-container {
-                    width: 100%;
-                    margin-top: 20px;
-                  }
-                  table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    font-size: 12px;
-                  }
-                  th, td {
-                    border: 1px solid #e2e8f0;
-                    padding: 8px 12px;
-                    text-align: left;
-                    color: #334155;
-                  }
-                  th {
-                    background-color: #f8fafc;
-                    font-weight: bold;
-                    color: #0f172a;
-                  }
-                  tr:nth-child(even) {
-                    background-color: #f8fafc;
-                  }
-                  tfoot td {
-                    background-color: #f1f5f9;
-                    border-top: 2px solid #cbd5e1;
-                    color: #0f172a;
-                  }
-                </style>
-              </head>
-              <body>
-                <!-- Page 1: Drawing -->
-                <div class="print-page">
-                  <div class="header">Croqui de Montagem Laje</div>
-                  <div class="drawing-container">
-                    ${svgString}
+              <html>
+                <head>
+                  <title>Projeto - ProjLAJE</title>
+                  <style>
+                    @page { size: landscape; margin: 0; }
+                    body { margin: 0; font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
+                    
+                    .print-page {
+                      width: 100vw;
+                      height: 100vh;
+                      position: relative;
+                      display: flex;
+                      flex-direction: column;
+                      padding: 20px;
+                      box-sizing: border-box;
+                    }
+                    
+                    .page-break {
+                      page-break-before: always;
+                    }
+      
+                    .header {
+                      text-align: center;
+                      font-size: 24px;
+                      font-weight: bold;
+                      margin-bottom: 10px;
+                      padding-bottom: 10px;
+                      border-bottom: 2px solid #0f172a;
+                      text-transform: uppercase;
+                      color: #0f172a;
+                    }
+      
+                    .drawing-container {
+                      flex: 1;
+                      width: 100%;
+                      display: flex;
+                      justify-content: center;
+                      align-items: center;
+                      overflow: hidden;
+                      border: 1px solid #e2e8f0;
+                      border-radius: 8px;
+                    }
+      
+                    /* Report Table Styles */
+                    .report-container {
+                      width: 100%;
+                      margin-top: 20px;
+                    }
+                    table {
+                      width: 100%;
+                      border-collapse: collapse;
+                      font-size: 12px;
+                    }
+                    th, td {
+                      border: 1px solid #e2e8f0;
+                      padding: 8px 12px;
+                      text-align: left;
+                      color: #334155;
+                    }
+                    th {
+                      background-color: #f8fafc;
+                      font-weight: bold;
+                      color: #0f172a;
+                    }
+                    tr:nth-child(even) {
+                      background-color: #f8fafc;
+                    }
+                    tfoot td {
+                      background-color: #f1f5f9;
+                      border-top: 2px solid #cbd5e1;
+                      color: #0f172a;
+                    }
+                  </style>
+                </head>
+                <body>
+                  <!-- Page 1: Drawing -->
+                  <div class="print-page">
+                    <div class="header">Croqui de Montagem Laje</div>
+                    <div class="drawing-container">
+                      ${svgString}
+                    </div>
                   </div>
-                </div>
-    
-                <!-- Page 2: Report -->
-                ${reportHTML}
-    
-                <script>
-                  window.onload = () => {
-                    setTimeout(() => {
-                      window.print();
-                      window.onafterprint = () => window.close();
-                    }, 500);
-                  }
-                </script>
-              </body>
-            </html>
-          `)
+      
+                  <!-- Page 2: Report -->
+                  ${reportHTML}
+      
+                  <script>
+                    window.onload = () => {
+                      setTimeout(() => {
+                        window.print();
+                        window.onafterprint = () => window.close();
+                      }, 500);
+                    }
+                  </script>
+                </body>
+              </html>
+            `)
       printWindow.document.close()
     } else {
       toast.error('Permita popups para exportar PDF.')
@@ -530,7 +530,7 @@ export const Sidebar: React.FC = () => {
   }
 
   return (
-    <ScrollArea className="h-full w-full bg-blue-50 border-r border-border no-print">
+    <ScrollArea className="h-full w-full bg-gradient-to-b from-gray-50 to-gray-100 border-r border-border no-print">
       <div className="p-4 space-y-6">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold tracking-tight">Ferramentas</h2>
