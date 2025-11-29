@@ -42,6 +42,7 @@ export const Canvas: React.FC = () => {
     drawingStart,
     setDrawingStart,
     addRectangle,
+    orthoMode,
   } = useDrawing()
 
   // State for panning
@@ -239,7 +240,13 @@ export const Canvas: React.FC = () => {
             setShowMeasureModal(false)
           } else {
             // Finish line or vigota segment
-            const endPoint = startPoint
+            let endPoint = startPoint
+
+            // Apply Ortho if enabled and drawing line
+            if (tool === 'line' && orthoMode && drawingStart) {
+              endPoint = getOrthogonalPoint(drawingStart, worldPos)
+            }
+
             const newShape: Shape = {
               id: generateId(),
               type: tool === 'add_vigota' ? 'vigota' : 'line',
@@ -419,8 +426,13 @@ export const Canvas: React.FC = () => {
       tool === 'dimension' ||
       tool === 'add_vigota'
     ) {
-      const snap = getSnapPoint(mousePos, shapes, view, [], gridVisible)
-      setSnapPoint(snap)
+      // If Ortho is ON and drawing a line, disable snapping to ensure strict orthogonality
+      if (tool === 'line' && orthoMode && drawingStart) {
+        setSnapPoint(null)
+      } else {
+        const snap = getSnapPoint(mousePos, shapes, view, [], gridVisible)
+        setSnapPoint(snap)
+      }
     } else {
       if (!isMovingShape) setSnapPoint(null)
     }
@@ -491,9 +503,15 @@ export const Canvas: React.FC = () => {
       endPoint = getPointFromLengthAndAngle(drawingStart, length, angle)
     } else {
       if (currentMousePos) {
-        const currentWorld = snapPoint
+        let currentWorld = snapPoint
           ? snapPoint.point
           : screenToWorld(currentMousePos, view)
+
+        // Apply Ortho if enabled
+        if (orthoMode && drawingStart) {
+          currentWorld = getOrthogonalPoint(drawingStart, currentWorld)
+        }
+
         const currentAngle = calculateAngle(drawingStart, currentWorld)
         endPoint = getPointFromLengthAndAngle(
           drawingStart,
@@ -622,11 +640,18 @@ export const Canvas: React.FC = () => {
       currentMousePos
     ) {
       const startScreen = worldToScreen(drawingStart, view)
-      const endScreen = snapPoint ? snapPoint.targetPoint : currentMousePos
+      let endScreen = snapPoint ? snapPoint.targetPoint : currentMousePos
 
-      const currentWorld = snapPoint
+      let currentWorld = snapPoint
         ? snapPoint.point
         : screenToWorld(currentMousePos, view)
+
+      // Apply Ortho if enabled
+      if (tool === 'line' && orthoMode && drawingStart) {
+        currentWorld = getOrthogonalPoint(drawingStart, currentWorld)
+        endScreen = worldToScreen(currentWorld, view)
+      }
+
       const length = calculateLineLength(drawingStart, currentWorld)
       const angle = calculateAngle(drawingStart, currentWorld)
 
@@ -748,6 +773,22 @@ export const Canvas: React.FC = () => {
       )
     }
     return null
+  }
+
+  // Calculate initial values for MeasureModal
+  let initialLength = 0
+  let initialAngle = 0
+  if (drawingStart && currentMousePos) {
+    let currentWorld = snapPoint
+      ? snapPoint.point
+      : screenToWorld(currentMousePos, view)
+
+    if (tool === 'line' && orthoMode) {
+      currentWorld = getOrthogonalPoint(drawingStart, currentWorld)
+    }
+
+    initialLength = calculateLineLength(drawingStart, currentWorld)
+    initialAngle = calculateAngle(drawingStart, currentWorld)
   }
 
   return (
@@ -924,14 +965,9 @@ export const Canvas: React.FC = () => {
                 setPolyPoints([])
                 setDrawingStart(null)
               }}
-              initialLength={calculateLineLength(
-                drawingStart,
-                screenToWorld(currentMousePos, view),
-              )}
-              initialAngle={calculateAngle(
-                drawingStart,
-                screenToWorld(currentMousePos, view),
-              )}
+              initialLength={initialLength}
+              initialAngle={initialAngle}
+              isOrtho={orthoMode}
             />
           )}
 

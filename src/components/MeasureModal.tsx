@@ -17,6 +17,7 @@ interface MeasureModalProps {
   onCancel: () => void
   initialLength?: number
   initialAngle?: number
+  isOrtho?: boolean
 }
 
 export const MeasureModal: React.FC<MeasureModalProps> = ({
@@ -25,6 +26,7 @@ export const MeasureModal: React.FC<MeasureModalProps> = ({
   onCancel,
   initialLength = 0,
   initialAngle = 0,
+  isOrtho = false,
 }) => {
   const [length, setLength] = useState(initialLength.toFixed(2))
   const [angle, setAngle] = useState(initialAngle.toFixed(2))
@@ -47,7 +49,7 @@ export const MeasureModal: React.FC<MeasureModalProps> = ({
     const l = parseFloat(length)
     const a = parseFloat(angle)
     if (isNaN(l) || l < 0) return
-    onConfirm(l, isNaN(a) ? undefined : a)
+    onConfirm(l, isOrtho || isNaN(a) ? undefined : a)
   }
 
   return (
@@ -81,19 +83,21 @@ export const MeasureModal: React.FC<MeasureModalProps> = ({
                 className="h-8 text-sm"
               />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="angle" className="text-xs">
-                Ângulo (°)
-              </Label>
-              <Input
-                id="angle"
-                type="number"
-                step="0.1"
-                value={angle}
-                onChange={(e) => setAngle(e.target.value)}
-                className="h-8 text-sm"
-              />
-            </div>
+            {!isOrtho && (
+              <div className="space-y-1">
+                <Label htmlFor="angle" className="text-xs">
+                  Ângulo (°)
+                </Label>
+                <Input
+                  id="angle"
+                  type="number"
+                  step="0.1"
+                  value={angle}
+                  onChange={(e) => setAngle(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+            )}
           </CardContent>
           <CardFooter className="p-3 pt-0 flex justify-end gap-2">
             <Button

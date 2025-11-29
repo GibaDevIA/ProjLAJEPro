@@ -10,11 +10,13 @@ import {
   Ruler,
   Plus,
   Eraser,
+  CornerRightUp,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Separator } from '@/components/ui/separator'
 
 export const TopBar: React.FC = () => {
-  const { tool, setTool } = useDrawing()
+  const { tool, setTool, orthoMode, setOrthoMode } = useDrawing()
 
   const tools = [
     {
@@ -80,7 +82,7 @@ export const TopBar: React.FC = () => {
       <div className="absolute left-4 font-semibold text-lg text-slate-800 hidden xl:block">
         ProjeLAJE1.0
       </div>
-      <div className="flex gap-2">
+      <div className="flex gap-2 items-center">
         {tools.map((t) => (
           <Button
             key={t.id}
@@ -99,6 +101,22 @@ export const TopBar: React.FC = () => {
             </span>
           </Button>
         ))}
+
+        <Separator orientation="vertical" className="h-10 mx-2" />
+
+        <Button
+          variant={orthoMode ? 'default' : 'ghost'}
+          onClick={() => setOrthoMode(!orthoMode)}
+          className={cn(
+            'flex flex-col items-center justify-center h-16 w-20 gap-1 py-1',
+            orthoMode
+              ? 'bg-white shadow-sm text-primary hover:bg-white/90'
+              : 'hover:bg-white/50',
+          )}
+        >
+          <CornerRightUp className="h-5 w-5" />
+          <span className="text-[10px] font-medium leading-none">ORTHO</span>
+        </Button>
       </div>
     </div>
   )

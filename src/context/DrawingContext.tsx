@@ -31,6 +31,8 @@ interface DrawingContextType {
   drawingStart: Point | null
   setDrawingStart: React.Dispatch<React.SetStateAction<Point | null>>
   addRectangle: (start: Point, end: Point) => boolean
+  orthoMode: boolean
+  setOrthoMode: (enabled: boolean) => void
 }
 
 const DrawingContext = createContext<DrawingContextType | undefined>(undefined)
@@ -45,6 +47,7 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
   const [activeShapeId, setActiveShapeId] = useState<string | null>(null)
   const [gridVisible, setGridVisible] = useState(true)
   const [drawingStart, setDrawingStart] = useState<Point | null>(null)
+  const [orthoMode, setOrthoMode] = useState(false)
 
   const addShape = useCallback((shape: Shape) => {
     setShapes((prev) => [...prev, shape])
@@ -219,6 +222,8 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
         drawingStart,
         setDrawingStart,
         addRectangle,
+        orthoMode,
+        setOrthoMode,
       }}
     >
       {children}
