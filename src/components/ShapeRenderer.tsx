@@ -64,7 +64,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
             y1={p1.y}
             x2={p2.x}
             y2={p2.y}
-            stroke={isSelected ? '#334155' : '#333'}
+            stroke={isSelected ? '#16a34a' : '#333'}
             strokeWidth={1}
             markerStart="url(#dim-arrow-start)"
             markerEnd="url(#dim-arrow-end)"
@@ -86,7 +86,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
             dy="4"
             textAnchor="middle"
             className="text-[10px] font-bold select-none"
-            fill={isSelected ? '#334155' : '#333'}
+            fill={isSelected ? '#16a34a' : '#333'}
             style={{ fontSize: '10px', fontFamily: 'Inter' }}
           >
             {formatDimension(length)}m
@@ -112,7 +112,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
             y1={p1.y}
             x2={p2.x}
             y2={p2.y}
-            stroke={isSelected ? '#334155' : '#ef4444'}
+            stroke={isSelected ? '#16a34a' : '#ef4444'}
             strokeWidth={isSelected ? 3 : 2}
             markerEnd="url(#arrowhead)"
             markerStart={isJoist ? 'url(#arrowhead-start)' : undefined}
@@ -148,7 +148,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
             y1={p1.y}
             x2={p2.x}
             y2={p2.y}
-            stroke={isSelected ? '#334155' : '#6b7280'}
+            stroke={isSelected ? '#16a34a' : '#6b7280'}
             strokeWidth={2}
             strokeDasharray="4 4"
             className="transition-colors duration-150"
@@ -177,13 +177,23 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
             y1={p1.y}
             x2={p2.x}
             y2={p2.y}
-            stroke={isSelected ? '#334155' : '#343a40'}
+            stroke={isSelected ? '#16a34a' : '#343a40'}
             strokeWidth={isSelected ? 3 : 2}
             strokeLinecap="round"
             className="transition-colors duration-150"
           />
-          <circle cx={p1.x} cy={p1.y} r={4} fill="#343a40" />
-          <circle cx={p2.x} cy={p2.y} r={4} fill="#343a40" />
+          <circle
+            cx={p1.x}
+            cy={p1.y}
+            r={4}
+            fill={isSelected ? '#16a34a' : '#343a40'}
+          />
+          <circle
+            cx={p2.x}
+            cy={p2.y}
+            r={4}
+            fill={isSelected ? '#16a34a' : '#343a40'}
+          />
 
           <g transform={`translate(${midX}, ${midY})`}>
             <rect
@@ -272,7 +282,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
             d={pathData}
             fill="#e0f7fa"
             fillOpacity="0.3"
-            stroke={isSelected ? '#334155' : '#343a40'}
+            stroke={isSelected ? '#16a34a' : '#343a40'}
             strokeWidth={isSelected ? 3 : 2}
             strokeLinejoin="round"
             className="transition-colors duration-150"
@@ -298,7 +308,13 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
           })}
 
           {screenPoints.map((p, i) => (
-            <circle key={i} cx={p.x} cy={p.y} r={4} fill="#343a40" />
+            <circle
+              key={i}
+              cx={p.x}
+              cy={p.y}
+              r={4}
+              fill={isSelected ? '#16a34a' : '#343a40'}
+            />
           ))}
 
           <g transform={`translate(${centroid.x}, ${centroid.y})`}>

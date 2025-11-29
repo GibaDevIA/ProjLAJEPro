@@ -73,7 +73,7 @@ export const Canvas: React.FC = () => {
   const [snapPoint, setSnapPoint] = useState<{
     point: Point
     targetPoint: Point
-    type: 'vertex' | 'edge' | 'grid'
+    type: 'vertex' | 'edge' | 'grid' | 'midpoint'
   } | null>(null)
 
   const initializedRef = useRef(false)
@@ -935,23 +935,73 @@ export const Canvas: React.FC = () => {
               {renderPreview()}
 
               {snapPoint && (
-                <circle
-                  cx={snapPoint.targetPoint.x}
-                  cy={snapPoint.targetPoint.y}
-                  r={snapPoint.type === 'edge' ? 6 : 8}
-                  fill="none"
-                  stroke={snapPoint.type === 'edge' ? '#f59e0b' : '#dc3545'}
-                  strokeWidth={2}
-                  className="animate-ping"
-                />
-              )}
-              {snapPoint && (
-                <circle
-                  cx={snapPoint.targetPoint.x}
-                  cy={snapPoint.targetPoint.y}
-                  r={snapPoint.type === 'edge' ? 3 : 4}
-                  fill={snapPoint.type === 'edge' ? '#f59e0b' : '#dc3545'}
-                />
+                <g>
+                  {/* Outer Ping Animation */}
+                  <circle
+                    cx={snapPoint.targetPoint.x}
+                    cy={snapPoint.targetPoint.y}
+                    r={snapPoint.type === 'edge' ? 6 : 8}
+                    fill="none"
+                    stroke={
+                      snapPoint.type === 'vertex'
+                        ? '#ef4444' // Red for vertex
+                        : snapPoint.type === 'midpoint'
+                          ? '#06b6d4' // Cyan for midpoint
+                          : snapPoint.type === 'edge'
+                            ? '#f59e0b' // Orange for edge
+                            : '#6b7280' // Gray for grid
+                    }
+                    strokeWidth={2}
+                    className="animate-ping"
+                  />
+
+                  {/* Inner Marker */}
+                  {snapPoint.type === 'vertex' && (
+                    <rect
+                      x={snapPoint.targetPoint.x - 4}
+                      y={snapPoint.targetPoint.y - 4}
+                      width={8}
+                      height={8}
+                      fill="none"
+                      stroke="#ef4444"
+                      strokeWidth={2}
+                    />
+                  )}
+
+                  {snapPoint.type === 'midpoint' && (
+                    <polygon
+                      points={`${snapPoint.targetPoint.x},${snapPoint.targetPoint.y - 5} ${snapPoint.targetPoint.x - 4},${snapPoint.targetPoint.y + 3} ${snapPoint.targetPoint.x + 4},${snapPoint.targetPoint.y + 3}`}
+                      fill="none"
+                      stroke="#06b6d4"
+                      strokeWidth={2}
+                    />
+                  )}
+
+                  {snapPoint.type === 'edge' && (
+                    <g
+                      transform={`translate(${snapPoint.targetPoint.x}, ${snapPoint.targetPoint.y}) rotate(45)`}
+                    >
+                      <rect
+                        x="-3"
+                        y="-3"
+                        width="6"
+                        height="6"
+                        fill="none"
+                        stroke="#f59e0b"
+                        strokeWidth={2}
+                      />
+                    </g>
+                  )}
+
+                  {snapPoint.type === 'grid' && (
+                    <circle
+                      cx={snapPoint.targetPoint.x}
+                      cy={snapPoint.targetPoint.y}
+                      r={3}
+                      fill="#6b7280"
+                    />
+                  )}
+                </g>
               )}
             </svg>
           </div>

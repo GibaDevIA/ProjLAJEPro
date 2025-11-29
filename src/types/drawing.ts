@@ -57,7 +57,7 @@ export interface SnapResult {
   point: Point
   targetPoint: Point
   distance: number
-  type: 'vertex' | 'edge' | 'grid'
+  type: 'vertex' | 'edge' | 'grid' | 'midpoint'
 }
 
 export interface SlabReportItem {

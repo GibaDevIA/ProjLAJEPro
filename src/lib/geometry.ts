@@ -142,7 +142,37 @@ export function getSnapPoint(
 
   if (closest) return closest
 
-  // 2. Snap to Edges
+  // 2. Snap to Midpoints
+  shapes.forEach((shape) => {
+    if (excludeShapeIds.includes(shape.id)) return
+    if (['line', 'rectangle', 'polygon'].includes(shape.type)) {
+      const numSegments =
+        shape.type === 'line' ? shape.points.length - 1 : shape.points.length
+
+      for (let i = 0; i < numSegments; i++) {
+        const p1 = shape.points[i]
+        const p2 = shape.points[(i + 1) % shape.points.length]
+
+        const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+        const screenMid = worldToScreen(mid, view)
+        const dist = distance(cursorScreenPos, screenMid)
+
+        if (dist < minDist) {
+          minDist = dist
+          closest = {
+            point: mid,
+            targetPoint: screenMid,
+            distance: dist,
+            type: 'midpoint',
+          }
+        }
+      }
+    }
+  })
+
+  if (closest) return closest
+
+  // 3. Snap to Edges (Nearest)
   shapes.forEach((shape) => {
     if (excludeShapeIds.includes(shape.id)) return
     if (['line', 'rectangle', 'polygon'].includes(shape.type)) {
@@ -178,7 +208,7 @@ export function getSnapPoint(
 
   if (closest) return closest
 
-  // 3. Snap to Grid
+  // 4. Snap to Grid
   if (snapToGrid) {
     const cursorWorld = screenToWorld(cursorScreenPos, view)
     const gridPointWorld = {
