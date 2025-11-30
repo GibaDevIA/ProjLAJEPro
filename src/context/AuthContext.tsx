@@ -7,6 +7,7 @@ import {
 } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 
 interface AuthContextType {
   user: User | null
@@ -18,6 +19,7 @@ interface AuthContextType {
   resetPasswordForEmail: (email: string) => Promise<{ error: any }>
   updatePassword: (password: string) => Promise<{ error: any }>
   loading: boolean
+  isAdmin: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -34,23 +36,67 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  const checkUserProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('is_admin, is_active')
+      .eq('id', userId)
+      .single()
+
+    if (error) {
+      console.error('Error fetching user profile:', error)
+      return false
+    }
+
+    if (data) {
+      // @ts-expect-error - Types are not updated yet in the project structure
+      if (data.is_active === false) {
+        await supabase.auth.signOut()
+        toast.error('Sua conta foi desativada. Entre em contato com o suporte.')
+        return false
+      }
+      // @ts-expect-error
+      setIsAdmin(!!data.is_admin)
+      return true
+    }
+    return true
+  }
 
   useEffect(() => {
     // Set up auth state listener FIRST
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
+
+      if (session?.user) {
+        await checkUserProfile(session.user.id)
+      } else {
+        setIsAdmin(false)
+      }
+
       setLoading(false)
     })
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const initSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       setSession(session)
       setUser(session?.user ?? null)
+
+      if (session?.user) {
+        await checkUserProfile(session.user.id)
+      }
+
       setLoading(false)
-    })
+    }
+
+    initSession()
 
     return () => subscription.unsubscribe()
   }, [])
@@ -116,6 +162,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     resetPasswordForEmail,
     updatePassword,
     loading,
+    isAdmin,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
