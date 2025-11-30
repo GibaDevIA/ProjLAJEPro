@@ -4,6 +4,7 @@ import {
   useEffect,
   useState,
   ReactNode,
+  useCallback,
 } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
@@ -38,68 +39,81 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
 
-  const checkUserProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('is_admin, is_active')
-      .eq('id', userId)
-      .single()
+  const checkUserProfile = useCallback(async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('is_admin, is_active')
+        .eq('id', userId)
+        .single()
 
-    if (error) {
-      console.error('Error fetching user profile:', error)
-      return false
-    }
-
-    if (data) {
-      // @ts-expect-error - Types are not updated yet in the project structure
-      if (data.is_active === false) {
-        await supabase.auth.signOut()
-        toast.error('Sua conta foi desativada. Entre em contato com o suporte.')
+      if (error) {
+        console.error('Error fetching user profile:', error)
+        // If we can't fetch profile, we assume safe default or handle error
+        // For security, if RLS blocks or error, maybe assume not admin.
+        // But we need to know if is_active check failed.
         return false
       }
-      // @ts-expect-error
-      setIsAdmin(!!data.is_admin)
-      return true
+
+      if (data) {
+        // Check if user is active
+        if (data.is_active === false) {
+          await supabase.auth.signOut()
+          toast.error(
+            'Sua conta foi desativada. Entre em contato com o suporte.',
+          )
+          return false
+        }
+        // Update admin status
+        setIsAdmin(!!data.is_admin)
+        return true
+      }
+      return true // Default to true if no profile found (should exist via trigger)
+    } catch (error) {
+      console.error('Unexpected error in checkUserProfile:', error)
+      return false
     }
-    return true
-  }
+  }, [])
 
   useEffect(() => {
-    // Set up auth state listener FIRST
+    // Set up auth state listener
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
 
-      if (session?.user) {
-        await checkUserProfile(session.user.id)
-      } else {
+      if (!session) {
         setIsAdmin(false)
       }
-
-      setLoading(false)
+      // Note: We do not set loading(false) here because we want to wait for profile check
+      // in the initSession logic. For subsequent events (like token refresh),
+      // the user is already logged in so loading is already false.
     })
 
-    // THEN check for existing session
+    // Check for existing session on mount
     const initSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      setSession(session)
-      setUser(session?.user ?? null)
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        setSession(session)
+        setUser(session?.user ?? null)
 
-      if (session?.user) {
-        await checkUserProfile(session.user.id)
+        if (session?.user) {
+          await checkUserProfile(session.user.id)
+        }
+      } catch (error) {
+        console.error('Error initializing session:', error)
+      } finally {
+        setLoading(false)
       }
-
-      setLoading(false)
     }
 
     initSession()
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [checkUserProfile])
 
   const signUp = async (email: string, password: string) => {
     const redirectUrl = `${window.location.origin}/`
@@ -114,11 +128,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    // 1. Authenticate with Supabase
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
-    return { error }
+
+    if (error) {
+      return { error }
+    }
+
+    // 2. If successful, verify profile status immediately
+    if (data.session?.user) {
+      const isActive = await checkUserProfile(data.session.user.id)
+      if (!isActive) {
+        // checkUserProfile handles the signOut and toast
+        return { error: { message: 'Conta inativa.' } }
+      }
+    }
+
+    return { data, error: null }
   }
 
   const signInWithGoogle = async () => {
@@ -134,6 +163,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
+    setIsAdmin(false)
     return { error }
   }
 
