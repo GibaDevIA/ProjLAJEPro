@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
-import { getProfile, updateProfile } from '@/services/profile'
+import { getProfile, updateProfile, createProfile } from '@/services/profile'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -30,7 +30,31 @@ const Profile = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       if (user) {
-        const { data, error } = await getProfile(user.id)
+        // Try to get the profile
+        let { data, error } = await getProfile(user.id)
+
+        // If profile is not found (PGRST116), create it automatically
+        if (error && error.code === 'PGRST116') {
+          try {
+            const { data: newProfile, error: createError } =
+              await createProfile(user.id, user.email || null)
+
+            if (createError) {
+              // If creation fails, we keep the original error or handle it
+              console.error('Error creating automatic profile:', createError)
+            } else {
+              // If creation succeeds, use the new profile data and clear error
+              data = newProfile
+              error = null
+            }
+          } catch (err) {
+            console.error(
+              'Unexpected error during automatic profile creation:',
+              err,
+            )
+          }
+        }
+
         if (error) {
           toast.error('Erro ao carregar perfil.')
         } else if (data) {

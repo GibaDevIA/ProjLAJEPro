@@ -18,6 +18,20 @@ export const getProfile = async (userId: string) => {
   return { data: data as Profile | null, error }
 }
 
+export const createProfile = async (userId: string, email: string | null) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .insert({
+      id: userId,
+      email: email,
+      full_name: null,
+    })
+    .select()
+    .single()
+
+  return { data: data as Profile | null, error }
+}
+
 export const updateProfile = async (
   userId: string,
   updates: Partial<Profile>,
