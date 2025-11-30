@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import {
   getUsers,
@@ -60,6 +60,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
+const PER_PAGE = 10
+
 export default function AdminDashboard() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
@@ -74,7 +76,6 @@ export default function AdminDashboard() {
     'created_at',
   )
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const PER_PAGE = 10
 
   // Editing State
   const [editingUser, setEditingUser] = useState<AdminProfile | null>(null)
@@ -82,11 +83,7 @@ export default function AdminDashboard() {
   const [editIsAdmin, setEditIsAdmin] = useState(false)
   const [savingUser, setSavingUser] = useState(false)
 
-  useEffect(() => {
-    fetchUsers()
-  }, [page, sortBy, sortOrder, search])
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoadingUsers(true)
     const { data, count, error } = await getUsers({
       page,
@@ -104,7 +101,11 @@ export default function AdminDashboard() {
       setTotalUsers(count || 0)
     }
     setLoadingUsers(false)
-  }
+  }, [page, sortBy, sortOrder, search])
+
+  useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
 
   const handleSort = (field: typeof sortBy) => {
     if (sortBy === field) {
@@ -119,7 +120,6 @@ export default function AdminDashboard() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     setPage(1)
-    fetchUsers()
   }
 
   const handleLogout = async () => {
