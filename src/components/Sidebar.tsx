@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { useDrawing } from '@/context/DrawingContext'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -20,6 +21,7 @@ import {
   ArrowLeft,
   ArrowRight,
   LogOut,
+  User,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { generateSlabReportData, worldToScreen } from '@/lib/geometry'
@@ -774,7 +776,17 @@ export const Sidebar: React.FC = () => {
 
         <Separator />
 
-        <div className="space-y-4">
+        <div className="space-y-2">
+          <Button
+            variant="outline"
+            className="w-full justify-start bg-white"
+            asChild
+          >
+            <Link to="/profile">
+              <User className="mr-2 h-4 w-4" />
+              Meu Perfil
+            </Link>
+          </Button>
           <Button
             variant="secondary"
             className="w-full justify-start"
