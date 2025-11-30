@@ -3,23 +3,33 @@ import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import Index from './pages/Index'
+import Login from './pages/Login'
+import Register from './pages/Register'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
+import { AuthProvider } from '@/context/AuthContext'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
 
 const App = () => (
   <BrowserRouter
     future={{ v7_startTransition: false, v7_relativeSplatPath: false }}
   >
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<Index />} />
-        </Route>
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route element={<ProtectedRoute />}>
+            <Route element={<Layout />}>
+              <Route path="/" element={<Index />} />
+            </Route>
+          </Route>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </TooltipProvider>
+    </AuthProvider>
   </BrowserRouter>
 )
 
