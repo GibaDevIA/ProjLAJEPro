@@ -38,6 +38,8 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
   const [unitWidth, setUnitWidth] = useState('30')
   const [unitLength, setUnitLength] = useState('20')
   const [beamWidth, setBeamWidth] = useState('12')
+  const [initialExclusion, setInitialExclusion] = useState('0')
+  const [finalExclusion, setFinalExclusion] = useState('0')
 
   useEffect(() => {
     if (open && initialConfig) {
@@ -47,6 +49,8 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
       setUnitWidth(initialConfig.unitWidth.toString())
       setUnitLength(initialConfig.unitLength.toString())
       setBeamWidth(initialConfig.beamWidth.toString())
+      setInitialExclusion(initialConfig.initialExclusion?.toString() || '0')
+      setFinalExclusion(initialConfig.finalExclusion?.toString() || '0')
     } else if (open) {
       // Defaults
       setType('H8')
@@ -55,6 +59,8 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
       setUnitWidth('30')
       setUnitLength('20')
       setBeamWidth('12')
+      setInitialExclusion('0')
+      setFinalExclusion('0')
     }
   }, [open, initialConfig])
 
@@ -73,6 +79,8 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
       unitLength: parseFloat(unitLength) || 0,
       beamWidth: parseFloat(beamWidth) || 0,
       interEixo: calculateInterEixo(),
+      initialExclusion: parseFloat(initialExclusion) || 0,
+      finalExclusion: parseFloat(finalExclusion) || 0,
     }
 
     onConfirm(config)
@@ -177,6 +185,34 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
               <Label>Inter Eixo (cm)</Label>
               <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
                 {calculateInterEixo()}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2 border-t pt-2">
+            <Label className="font-semibold">Zonas de Exclusão (cm)</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="initial-exclusion" className="text-xs">
+                  Distância Inicial
+                </Label>
+                <Input
+                  id="initial-exclusion"
+                  type="number"
+                  value={initialExclusion}
+                  onChange={(e) => setInitialExclusion(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="final-exclusion" className="text-xs">
+                  Distância Final
+                </Label>
+                <Input
+                  id="final-exclusion"
+                  type="number"
+                  value={finalExclusion}
+                  onChange={(e) => setFinalExclusion(e.target.value)}
+                />
               </div>
             </div>
           </div>

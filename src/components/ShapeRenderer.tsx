@@ -26,12 +26,18 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
         joistArrow &&
         shape.properties?.slabConfig
       ) {
-        const interEixoMeters = shape.properties.slabConfig.interEixo / 100
+        const config = shape.properties.slabConfig
+        const interEixoMeters = config.interEixo / 100
+        const initialExclusion = (config.initialExclusion || 0) / 100
+        const finalExclusion = (config.finalExclusion || 0) / 100
+
         return generateBeamLines(
           shape.points,
           joistArrow.points[0],
           joistArrow.points[1],
           interEixoMeters,
+          initialExclusion,
+          finalExclusion,
         )
       }
       return []

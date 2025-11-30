@@ -19,6 +19,8 @@ export interface SlabConfig {
   unitLength: number // cm
   beamWidth: number // cm
   interEixo: number // cm (calculated)
+  initialExclusion?: number // cm
+  finalExclusion?: number // cm
 }
 
 export interface Shape {

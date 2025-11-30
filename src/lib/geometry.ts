@@ -406,12 +406,18 @@ export function calculateJoistCount(
 
 export function getSlabJoistCount(slab: Shape, joistArrow: Shape): number {
   if (!slab.properties?.slabConfig) return 0
-  const interEixoMeters = (slab.properties.slabConfig.interEixo || 42) / 100
+  const config = slab.properties.slabConfig
+  const interEixoMeters = (config.interEixo || 42) / 100
+  const initialExclusion = (config.initialExclusion || 0) / 100
+  const finalExclusion = (config.finalExclusion || 0) / 100
+
   const lines = generateBeamLines(
     slab.points,
     joistArrow.points[0],
     joistArrow.points[1],
     interEixoMeters,
+    initialExclusion,
+    finalExclusion,
   )
   return lines.length
 }
@@ -422,6 +428,8 @@ export function generateBeamLines(
   arrowStart: Point,
   arrowEnd: Point,
   spacing: number, // in meters
+  initialExclusion: number = 0, // in meters
+  finalExclusion: number = 0, // in meters
 ): Point[][] {
   if (spacing <= 0) return []
 
@@ -455,13 +463,17 @@ export function generateBeamLines(
     if (proj > maxProj) maxProj = proj
   }
 
-  // Generate lines starting from minProj to maxProj with spacing
+  // Generate lines starting from adjusted start to adjusted end with spacing
   const lines: Point[][] = []
 
-  const start = minProj
-  const end = maxProj
+  const effectiveStart = minProj + initialExclusion
+  const effectiveEnd = maxProj - finalExclusion
 
-  for (let d = start + spacing / 2; d <= end; d += spacing) {
+  if (effectiveStart >= effectiveEnd) {
+    return []
+  }
+
+  for (let d = effectiveStart + spacing / 2; d <= effectiveEnd; d += spacing) {
     const origin = { x: d * px, y: d * py }
     const dir = { x: bx, y: by }
 
@@ -489,6 +501,8 @@ export function calculateVigotaLengths(
   if (!slab.properties?.slabConfig) return []
   const config = slab.properties.slabConfig
   const interEixoMeters = (config.interEixo || 42) / 100
+  const initialExclusion = (config.initialExclusion || 0) / 100
+  const finalExclusion = (config.finalExclusion || 0) / 100
 
   // Get the center lines of the joists
   // This corresponds exactly to the visual representation (dashed lines)
@@ -497,6 +511,8 @@ export function calculateVigotaLengths(
     joistArrow.points[0],
     joistArrow.points[1],
     interEixoMeters,
+    initialExclusion,
+    finalExclusion,
   )
 
   // Calculate length of each line segment directly
