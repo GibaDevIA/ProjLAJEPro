@@ -33,6 +33,12 @@ interface DrawingContextType {
   addRectangle: (start: Point, end: Point) => boolean
   orthoMode: boolean
   setOrthoMode: (enabled: boolean) => void
+  projectId: string | null
+  setProjectId: (id: string | null) => void
+  projectName: string | null
+  setProjectName: (name: string | null) => void
+  isLoadingProject: boolean
+  setIsLoadingProject: (loading: boolean) => void
 }
 
 const DrawingContext = createContext<DrawingContextType | undefined>(undefined)
@@ -48,6 +54,11 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
   const [gridVisible, setGridVisible] = useState(true)
   const [drawingStart, setDrawingStart] = useState<Point | null>(null)
   const [orthoMode, setOrthoMode] = useState(false)
+
+  // Project State
+  const [projectId, setProjectId] = useState<string | null>(null)
+  const [projectName, setProjectName] = useState<string | null>(null)
+  const [isLoadingProject, setIsLoadingProject] = useState(false)
 
   const addShape = useCallback((shape: Shape) => {
     setShapes((prev) => [...prev, shape])
@@ -88,10 +99,10 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `croqui-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `${projectName || 'croqui'}-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
-  }, [shapes, view])
+  }, [shapes, view, projectName])
 
   const loadFromJSON = useCallback((file: File) => {
     const reader = new FileReader()
@@ -224,6 +235,12 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
         addRectangle,
         orthoMode,
         setOrthoMode,
+        projectId,
+        setProjectId,
+        projectName,
+        setProjectName,
+        isLoadingProject,
+        setIsLoadingProject,
       }}
     >
       {children}

@@ -21,10 +21,13 @@ import {
   ArrowLeft,
   ArrowRight,
   LogOut,
+  CloudUpload,
+  Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { generateSlabReportData, worldToScreen } from '@/lib/geometry'
 import { Shape, ViewState } from '@/types/drawing'
+import { updateProject, ProjectContent } from '@/services/projects'
 
 export const Sidebar: React.FC = () => {
   const {
@@ -44,10 +47,11 @@ export const Sidebar: React.FC = () => {
     activeShapeId,
     updateShape,
     removeShape,
+    projectId,
+    projectName,
   } = useDrawing()
 
   const { signOut } = useAuth()
-
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   // State for Rectangle Dimensions Panel
@@ -56,6 +60,9 @@ export const Sidebar: React.FC = () => {
 
   // State for Move Object Panel
   const [moveDistance, setMoveDistance] = useState('0.10')
+
+  // State for Saving
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     if (tool === 'rectangle') {
@@ -69,6 +76,31 @@ export const Sidebar: React.FC = () => {
       ...prev,
       scale: Math.max(1, prev.scale + delta),
     }))
+  }
+
+  const handleSaveProject = async () => {
+    if (!projectId) {
+      toast.error('Projeto não salvo no banco de dados. Use Exportar JSON.')
+      return
+    }
+
+    setIsSaving(true)
+    const content: ProjectContent = {
+      shapes,
+      view,
+      version: '1.0',
+      dateCreated: new Date().toISOString(),
+      units: 'meters',
+    }
+
+    const { error } = await updateProject(projectId, { content })
+
+    if (error) {
+      toast.error('Erro ao salvar projeto: ' + error.message)
+    } else {
+      toast.success('Projeto salvo com sucesso!')
+    }
+    setIsSaving(false)
   }
 
   const generateReportSVG = (
@@ -550,6 +582,15 @@ export const Sidebar: React.FC = () => {
   return (
     <ScrollArea className="h-full w-full bg-gradient-to-b from-gray-50 to-gray-100 border-r border-border no-print">
       <div className="p-4 space-y-6">
+        {projectName && (
+          <div className="bg-primary/5 p-3 rounded border border-primary/10">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Projeto
+            </p>
+            <p className="font-bold text-primary truncate">{projectName}</p>
+          </div>
+        )}
+
         <div className="space-y-1">
           <h2 className="text-lg font-semibold tracking-tight">Ferramentas</h2>
           <p className="text-sm text-muted-foreground">Opções Adicionais</p>
@@ -721,13 +762,29 @@ export const Sidebar: React.FC = () => {
         <div className="space-y-4">
           <h3 className="text-sm font-medium">Arquivo</h3>
           <div className="grid grid-cols-1 gap-2">
+            {projectId && (
+              <Button
+                variant="default"
+                className="justify-start"
+                onClick={handleSaveProject}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <CloudUpload className="mr-2 h-4 w-4" />
+                )}
+                Salvar
+              </Button>
+            )}
+
             <Button
               variant="outline"
               className="justify-start bg-white"
               onClick={exportToJSON}
             >
               <Save className="mr-2 h-4 w-4" />
-              Salvar JSON
+              Exportar JSON
             </Button>
             <Button
               variant="outline"
@@ -735,7 +792,7 @@ export const Sidebar: React.FC = () => {
               onClick={() => fileInputRef.current?.click()}
             >
               <FolderOpen className="mr-2 h-4 w-4" />
-              Abrir JSON
+              Importar JSON
             </Button>
             <input
               type="file"

@@ -13,8 +13,10 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { Loader2, ArrowLeft } from 'lucide-react'
+import { Loader2, ArrowLeft, Calendar, Clock } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
 const Profile = () => {
   const { user, updatePassword } = useAuth()
@@ -108,6 +110,17 @@ const Profile = () => {
     }
   }
 
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'N/A'
+    try {
+      return format(new Date(dateString), "dd 'de' MMMM 'de' yyyy, HH:mm", {
+        locale: ptBR,
+      })
+    } catch (e) {
+      return dateString
+    }
+  }
+
   if (loadingProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -134,6 +147,36 @@ const Profile = () => {
           <p className="text-muted-foreground">
             Gerencie suas informações pessoais e segurança.
           </p>
+        </div>
+
+        {/* Account Statistics */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card className="flex flex-row items-center gap-4 p-6">
+            <div className="bg-primary/10 p-3 rounded-full">
+              <Calendar className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Conta criada em
+              </p>
+              <p className="text-sm font-bold text-slate-800">
+                {formatDate(user?.created_at)}
+              </p>
+            </div>
+          </Card>
+          <Card className="flex flex-row items-center gap-4 p-6">
+            <div className="bg-primary/10 p-3 rounded-full">
+              <Clock className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Último login
+              </p>
+              <p className="text-sm font-bold text-slate-800">
+                {formatDate(user?.last_sign_in_at)}
+              </p>
+            </div>
+          </Card>
         </div>
 
         <div className="grid gap-8 md:grid-cols-2">

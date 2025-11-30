@@ -32,6 +32,7 @@ const App = () => (
             <Route path="/profile" element={<Profile />} />
             <Route element={<Layout />}>
               <Route path="/project" element={<Index />} />
+              <Route path="/project/:id" element={<Index />} />
             </Route>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Route>
