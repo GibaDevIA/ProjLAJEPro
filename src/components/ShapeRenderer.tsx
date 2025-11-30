@@ -3,6 +3,7 @@ import { Shape, ViewState } from '@/types/drawing'
 import {
   worldToScreen,
   calculatePolygonArea,
+  calculateNetSlabArea,
   calculateLineLength,
   generateBeamLines,
   getSlabJoistCount,
@@ -228,7 +229,13 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
 
     if (shape.type === 'rectangle' || shape.type === 'polygon') {
       const pathData = `M ${screenPoints.map((p) => `${p.x},${p.y}`).join(' L ')} Z`
-      const area = calculatePolygonArea(shape.points)
+
+      const area = useMemo(() => {
+        if (joistArrow) {
+          return calculateNetSlabArea(shape, joistArrow)
+        }
+        return calculatePolygonArea(shape.points)
+      }, [shape, joistArrow])
 
       const centroid = screenPoints.reduce(
         (acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }),

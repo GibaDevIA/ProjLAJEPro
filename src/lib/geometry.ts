@@ -523,6 +523,105 @@ export function calculateVigotaLengths(
   })
 }
 
+function clipPolygon(
+  points: Point[],
+  normal: Point,
+  limit: number,
+  keepAbove: boolean,
+): Point[] {
+  const output: Point[] = []
+  if (points.length === 0) return output
+
+  let a = points[points.length - 1]
+
+  for (const b of points) {
+    const valA = a.x * normal.x + a.y * normal.y
+    const valB = b.x * normal.x + b.y * normal.y
+
+    // Strict comparison slightly adjusted to handle floating point precision issues if needed,
+    // but strict is usually fine for this 2D geometry context.
+    const aIn = keepAbove ? valA >= limit : valA <= limit
+    const bIn = keepAbove ? valB >= limit : valB <= limit
+
+    if (bIn) {
+      if (!aIn) {
+        // Entering: add intersection
+        if (Math.abs(valB - valA) > 1e-9) {
+          const t = (limit - valA) / (valB - valA)
+          output.push({ x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) })
+        } else {
+          output.push(a) // Close enough, avoid division by zero
+        }
+      }
+      output.push(b)
+    } else {
+      if (aIn) {
+        // Exiting: add intersection
+        if (Math.abs(valB - valA) > 1e-9) {
+          const t = (limit - valA) / (valB - valA)
+          output.push({ x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) })
+        } else {
+          output.push(b) // Close enough
+        }
+      }
+    }
+    a = b
+  }
+  return output
+}
+
+export function calculateNetSlabArea(slab: Shape, joistArrow: Shape): number {
+  if (!slab.properties?.slabConfig) return calculatePolygonArea(slab.points)
+
+  const config = slab.properties.slabConfig
+  const initialExclusion = (config.initialExclusion || 0) / 100 // convert cm to meters
+  const finalExclusion = (config.finalExclusion || 0) / 100 // convert cm to meters
+
+  if (initialExclusion === 0 && finalExclusion === 0) {
+    return calculatePolygonArea(slab.points)
+  }
+
+  // Direction logic (same as generateBeamLines)
+  const arrowStart = joistArrow.points[0]
+  const arrowEnd = joistArrow.points[1]
+  const dx = arrowEnd.x - arrowStart.x
+  const dy = arrowEnd.y - arrowStart.y
+  const len = Math.sqrt(dx * dx + dy * dy)
+  if (len === 0) return calculatePolygonArea(slab.points)
+
+  const ax = dx / len
+  const ay = dy / len
+
+  // Projection direction (perpendicular to arrow)
+  // Rotate 90 degrees: (-y, x)
+  const px = -ay
+  const py = ax
+
+  // Project polygon
+  let minProj = Infinity
+  let maxProj = -Infinity
+
+  for (const p of slab.points) {
+    const proj = p.x * px + p.y * py
+    if (proj < minProj) minProj = proj
+    if (proj > maxProj) maxProj = proj
+  }
+
+  const limit1 = minProj + initialExclusion
+  const limit2 = maxProj - finalExclusion
+
+  // If limits cross, area is 0 (exclusions overlap completely)
+  if (limit1 >= limit2) return 0
+
+  // Clip against limit1 (keep >= limit1)
+  let clipped = clipPolygon(slab.points, { x: px, y: py }, limit1, true)
+
+  // Clip against limit2 (keep <= limit2)
+  clipped = clipPolygon(clipped, { x: px, y: py }, limit2, false)
+
+  return calculatePolygonArea(clipped)
+}
+
 export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
   const slabs = shapes.filter(
     (s) => s.type === 'rectangle' || s.type === 'polygon',
@@ -530,7 +629,6 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
   const manualVigotas = shapes.filter((s) => s.type === 'vigota')
 
   return slabs.map((slab, index) => {
-    const area = slab.properties?.area || calculatePolygonArea(slab.points)
     const label = slab.properties?.label || `Laje ${index + 1}`
     const type = slab.properties?.slabConfig?.type || '-'
     const material =
@@ -562,6 +660,13 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
           slab,
         ),
     )
+
+    // Calculate area: Use net area if joist arrow exists (which implies direction and config)
+    // otherwise fall back to stored area or polygon area
+    let area = slab.properties?.area || calculatePolygonArea(slab.points)
+    if (joistArrow) {
+      area = calculateNetSlabArea(slab, joistArrow)
+    }
 
     let vigotaCount = 0
     let vigotaSummary = ''
