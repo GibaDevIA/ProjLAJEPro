@@ -21,7 +21,6 @@ import {
   ArrowLeft,
   ArrowRight,
   LogOut,
-  User,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { generateSlabReportData, worldToScreen } from '@/lib/geometry'
@@ -782,9 +781,9 @@ export const Sidebar: React.FC = () => {
             className="w-full justify-start bg-white"
             asChild
           >
-            <Link to="/profile">
-              <User className="mr-2 h-4 w-4" />
-              Meu Perfil
+            <Link to="/dashboard">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Voltar ao Dashboard
             </Link>
           </Button>
           <Button

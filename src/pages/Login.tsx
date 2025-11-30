@@ -32,7 +32,7 @@ const Login = () => {
         toast.error('Erro ao fazer login: ' + error.message)
       } else {
         toast.success('Login realizado com sucesso!')
-        navigate('/')
+        navigate('/dashboard')
       }
     } catch (error) {
       toast.error('Ocorreu um erro inesperado.')

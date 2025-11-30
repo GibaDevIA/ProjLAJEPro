@@ -39,7 +39,7 @@ const Register = () => {
         toast.error('Erro ao registrar: ' + error.message)
       } else {
         toast.success('Registro realizado com sucesso!')
-        navigate('/')
+        navigate('/dashboard')
       }
     } catch (error) {
       toast.error('Ocorreu um erro inesperado.')
