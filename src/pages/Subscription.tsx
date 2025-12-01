@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import {
   getSubscription,
@@ -37,13 +37,7 @@ export default function Subscription() {
   >(null)
   const [processing, setProcessing] = useState(false)
 
-  useEffect(() => {
-    if (user) {
-      fetchSubscription()
-    }
-  }, [user])
-
-  const fetchSubscription = async () => {
+  const fetchSubscription = useCallback(async () => {
     setLoading(true)
     if (user) {
       const { data, error } = await getSubscription(user.id)
@@ -54,7 +48,13 @@ export default function Subscription() {
       }
     }
     setLoading(false)
-  }
+  }, [user])
+
+  useEffect(() => {
+    if (user) {
+      fetchSubscription()
+    }
+  }, [user, fetchSubscription])
 
   const handleUpgrade = async () => {
     setProcessing(true)

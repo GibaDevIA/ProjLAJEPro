@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import {
   Card,
@@ -59,13 +59,7 @@ const Dashboard = () => {
   // Delete Project State
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (user) {
-      fetchProjects()
-    }
-  }, [user])
-
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     setLoadingProjects(true)
     const { data, error } = await getProjects()
     if (error) {
@@ -75,7 +69,13 @@ const Dashboard = () => {
       setProjects(data || [])
     }
     setLoadingProjects(false)
-  }
+  }, [])
+
+  useEffect(() => {
+    if (user) {
+      fetchProjects()
+    }
+  }, [user, fetchProjects])
 
   const handleLogout = async () => {
     try {
