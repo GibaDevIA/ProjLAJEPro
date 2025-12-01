@@ -14,6 +14,7 @@ export const ProtectedRoute = () => {
   }
 
   if (!session) {
+    // User is unauthenticated, redirect to Landing Page at '/'
     return <Navigate to="/" replace />
   }
 

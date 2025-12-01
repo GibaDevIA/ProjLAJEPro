@@ -9,7 +9,6 @@ import {
   Layout,
   MousePointerClick,
   FileOutput,
-  Layers,
   Smartphone,
   Zap,
 } from 'lucide-react'
@@ -23,15 +22,9 @@ const features = [
   },
   {
     icon: Layout,
-    title: 'Fluxo de Trabalho CAD',
+    title: 'Fluxo Otimizado',
     description:
-      'Interface familiar para quem usa CAD, com comandos de linha, retângulo e polígono otimizados para produtividade.',
-  },
-  {
-    icon: Layers,
-    title: '2D e 3D Drafting',
-    description:
-      'Ferramentas abrangentes para detalhamento em 2D e visualização da estrutura, facilitando o entendimento do projeto.',
+      'Interface familiar, com comandos de linha, retângulo e polígono otimizados para produtividade.',
   },
   {
     icon: FileOutput,
@@ -62,12 +55,14 @@ export const FeaturesSection = () => {
             Como Funciona
           </h2>
           <p className="text-lg text-slate-600">
-            O Desenho CAD Prático simplifica a criação de projetos estruturais e
-            arquitetônicos com um conjunto poderoso de ferramentas.
+            O ProjLAJE transforma o processo de criação de panos de laje: você
+            insere as medidas, o sistema gera o desenho automaticamente e
+            permite ajustar tudo de forma visual e intuitiva. Simples, rápido e
+            sem precisar de conhecimento técnico ou softwares complexos.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 justify-center">
           {features.map((feature, index) => (
             <Card
               key={index}

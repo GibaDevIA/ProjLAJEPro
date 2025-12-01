@@ -12,15 +12,18 @@ export const HeroSection = () => {
   return (
     <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-32 bg-gradient-to-b from-slate-50 to-white overflow-hidden">
       <div className="container mx-auto px-4 relative z-10">
-        <div className="max-w-3xl mx-auto text-center space-y-8">
+        <div className="max-w-4xl mx-auto text-center space-y-8">
           <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-slate-900 leading-tight">
-            Desenho CAD Prático para
-            <span className="text-primary block mt-2">Projetos Ágeis</span>
+            ProjLAJE — Desenhe panos de laje em minutos,
+            <span className="text-primary block mt-2">
+              sem precisar de CAD.
+            </span>
           </h1>
-          <p className="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            Crie plantas, desenhe lajes e gere descritivos técnicos com a
-            ferramenta mais intuitiva do mercado. Ideal para engenheiros,
-            arquitetos e projetistas.
+          <p className="text-lg md:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
+            O ProjLAJE automatiza todo o processo: você coloca as medidas e o
+            sistema gera os panos, calcula vigotas, áreas e materiais
+            automaticamente. Arraste os panos no projeto, veja tudo se encaixar
+            — simples, rápido e 100% online.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
@@ -29,7 +32,7 @@ export const HeroSection = () => {
               className="h-12 px-8 text-lg w-full sm:w-auto"
               onClick={scrollToPricing}
             >
-              Começar Gratuitamente
+              Começar Agora
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
             <Button
@@ -42,7 +45,7 @@ export const HeroSection = () => {
                   ?.scrollIntoView({ behavior: 'smooth' })
               }
             >
-              Saiba Mais
+              Como Funciona
             </Button>
           </div>
 

@@ -12,9 +12,11 @@ import { useNavigate } from 'react-router-dom'
 
 const plans = [
   {
-    name: 'Gratuito',
-    price: 'R$ 0',
-    description: 'Para estudantes e pequenos testes.',
+    name: 'Gratuito 7 dias',
+    priceDisplay: (
+      <span className="text-4xl font-extrabold text-slate-900">R$ 0</span>
+    ),
+    description: 'Gratuito 7 dias, até 5 panos por projeto.',
     features: [
       'Até 3 projetos',
       'Ferramentas básicas de desenho',
@@ -26,32 +28,27 @@ const plans = [
   },
   {
     name: 'Profissional',
-    price: 'R$ 49',
-    period: '/mês',
+    priceDisplay: (
+      <div className="flex flex-col">
+        <span className="text-sm text-slate-500 line-through font-medium">
+          de R$ 297
+        </span>
+        <div className="flex items-baseline gap-1">
+          <span className="text-sm text-slate-600 font-bold">por</span>
+          <span className="text-4xl font-extrabold text-primary">R$ 147</span>
+          <span className="text-slate-500">/mês</span>
+        </div>
+      </div>
+    ),
     description: 'Para arquitetos e engenheiros autônomos.',
     features: [
       'Projetos ilimitados',
-      'Ferramentas avançadas de CAD',
       'Exportação em PDF e JPG',
       'Cálculo automático de materiais',
       'Suporte prioritário',
     ],
     buttonText: 'Assinar Profissional',
     highlight: true,
-  },
-  {
-    name: 'Empresarial',
-    price: 'Sob Consulta',
-    description: 'Para escritórios e grandes equipes.',
-    features: [
-      'Tudo do Profissional',
-      'Gestão de equipe',
-      'API de integração',
-      'Treinamento dedicado',
-      'SLA garantido',
-    ],
-    buttonText: 'Fale Conosco',
-    highlight: false,
   },
 ]
 
@@ -71,7 +68,7 @@ export const PricingSection = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {plans.map((plan, index) => (
             <Card
               key={index}
@@ -85,14 +82,11 @@ export const PricingSection = () => {
                 <CardTitle className="text-2xl font-bold text-slate-800">
                   {plan.name}
                 </CardTitle>
-                <CardDescription>{plan.description}</CardDescription>
-                <div className="mt-4">
-                  <span className="text-4xl font-extrabold text-slate-900">
-                    {plan.price}
-                  </span>
-                  {plan.period && (
-                    <span className="text-slate-500 ml-1">{plan.period}</span>
-                  )}
+                <CardDescription className="min-h-[40px] flex items-center">
+                  {plan.description}
+                </CardDescription>
+                <div className="mt-4 min-h-[64px] flex items-center">
+                  {plan.priceDisplay}
                 </div>
               </CardHeader>
               <CardContent className="flex-1">
