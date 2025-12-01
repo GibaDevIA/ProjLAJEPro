@@ -17,6 +17,7 @@ import {
   Loader2,
   FileEdit,
   Trash2,
+  CreditCard,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getProjects, createProject, deleteProject } from '@/services/projects'
@@ -183,6 +184,22 @@ const Dashboard = () => {
             <CardContent>
               <Button asChild variant="outline" className="w-full">
                 <Link to="/profile">Acessar Perfil</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Subscription Card */}
+          <Card className="hover:shadow-lg transition-all duration-300 cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
+                <CreditCard className="h-6 w-6 text-slate-700" />
+                Assinatura
+              </CardTitle>
+              <CardDescription>Gerencie seu plano.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild variant="outline" className="w-full">
+                <Link to="/dashboard/subscription">Ver Assinatura</Link>
               </Button>
             </CardContent>
           </Card>

@@ -508,7 +508,7 @@ export const Sidebar: React.FC = () => {
     }
   }
 
-  const handleConfirmRectangle = () => {
+  const handleConfirmRectangle = async () => {
     // Use drawingStart or default to origin (0,0) if not set
     const start = drawingStart || { x: 0, y: 0 }
 
@@ -527,13 +527,13 @@ export const Sidebar: React.FC = () => {
       y: start.y + h,
     }
 
-    const success = addRectangle(start, endPoint)
+    const success = await addRectangle(start, endPoint)
     if (success) {
       setDrawingStart(null)
       setTool('select')
       toast.success('Laje criada com sucesso.')
     } else {
-      toast.error('Erro ao criar laje. Verifique as dimensões.')
+      // Error message handled inside addRectangle if limit reached, or generic here
     }
   }
 

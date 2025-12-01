@@ -15,6 +15,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      plans: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          duration_days: number | null
+          id: string
+          is_active: boolean | null
+          max_panos_per_project: number | null
+          name: string
+          price: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          duration_days?: number | null
+          id?: string
+          is_active?: boolean | null
+          max_panos_per_project?: number | null
+          name: string
+          price: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          duration_days?: number | null
+          id?: string
+          is_active?: boolean | null
+          max_panos_per_project?: number | null
+          name?: string
+          price?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -23,6 +59,7 @@ export type Database = {
           id: string
           is_active: boolean
           is_admin: boolean
+          plan_id: string
           updated_at: string | null
         }
         Insert: {
@@ -32,6 +69,7 @@ export type Database = {
           id: string
           is_active?: boolean
           is_admin?: boolean
+          plan_id: string
           updated_at?: string | null
         }
         Update: {
@@ -41,9 +79,18 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_admin?: boolean
+          plan_id?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'profiles_plan_id_fkey'
+            columns: ['plan_id']
+            isOneToOne: false
+            referencedRelation: 'plans'
+            referencedColumns: ['id']
+          },
+        ]
       }
       projects: {
         Row: {

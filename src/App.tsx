@@ -11,6 +11,7 @@ import ResetPassword from './pages/ResetPassword'
 import Profile from './pages/Profile'
 import Dashboard from './pages/Dashboard'
 import AdminDashboard from './pages/AdminDashboard'
+import Subscription from './pages/Subscription'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 import { AuthProvider } from '@/context/AuthContext'
@@ -38,6 +39,7 @@ const App = () => (
 
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard/subscription" element={<Subscription />} />
             <Route path="/profile" element={<Profile />} />
             <Route element={<Layout />}>
               <Route path="/project" element={<Index />} />

@@ -4,10 +4,14 @@ import React, {
   useState,
   useCallback,
   ReactNode,
+  useEffect,
 } from 'react'
 import { Shape, ViewState, ToolType, Point } from '@/types/drawing'
 import { findClosedCycle, calculatePolygonArea } from '@/lib/geometry'
 import { generateId } from '@/lib/utils'
+import { useAuth } from '@/context/AuthContext'
+import { checkProjectLimit } from '@/services/subscription'
+import { toast } from 'sonner'
 
 interface DrawingContextType {
   shapes: Shape[]
@@ -39,11 +43,13 @@ interface DrawingContextType {
   setProjectName: (name: string | null) => void
   isLoadingProject: boolean
   setIsLoadingProject: (loading: boolean) => void
+  checkLimits: () => Promise<boolean>
 }
 
 const DrawingContext = createContext<DrawingContextType | undefined>(undefined)
 
 export const DrawingProvider = ({ children }: { children: ReactNode }) => {
+  const { user } = useAuth()
   const [shapes, setShapes] = useState<Shape[]>([])
   const [view, setView] = useState<ViewState>({
     scale: 50,
@@ -59,6 +65,31 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
   const [projectId, setProjectId] = useState<string | null>(null)
   const [projectName, setProjectName] = useState<string | null>(null)
   const [isLoadingProject, setIsLoadingProject] = useState(false)
+
+  const [panosCount, setPanosCount] = useState(0)
+
+  useEffect(() => {
+    const count = shapes.filter(
+      (s) => s.type === 'rectangle' || s.type === 'polygon',
+    ).length
+    setPanosCount(count)
+  }, [shapes])
+
+  const checkLimits = useCallback(async () => {
+    if (!user) return true // Should be authenticated
+    const currentCount = shapes.filter(
+      (s) => s.type === 'rectangle' || s.type === 'polygon',
+    ).length
+    const { allowed, limit } = await checkProjectLimit(user.id, currentCount)
+
+    if (!allowed) {
+      toast.error(
+        `Limite de ${limit} panos atingido neste plano. Atualize para Profissional.`,
+      )
+      return false
+    }
+    return true
+  }, [user, shapes])
 
   const addShape = useCallback((shape: Shape) => {
     setShapes((prev) => [...prev, shape])
@@ -137,7 +168,10 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
     return `L${nextNumber}`
   }
 
-  const checkAndMergeLines = useCallback(() => {
+  const checkAndMergeLines = useCallback(async () => {
+    // Check limits before merging (creating a polygon)
+    if (!(await checkLimits())) return false
+
     const lines = shapes.filter((s) => s.type === 'line')
     const cycle = findClosedCycle(lines)
 
@@ -161,53 +195,64 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
       return true
     }
     return false
-  }, [shapes])
+  }, [shapes, checkLimits])
 
-  const addRectangle = useCallback((start: Point, end: Point) => {
-    const width = Math.abs(end.x - start.x)
-    const height = Math.abs(end.y - start.y)
+  const addRectangle = useCallback(
+    async (start: Point, end: Point) => {
+      // Check limits first
+      if (!(await checkLimits())) return false
 
-    if (width >= 0.01 && height >= 0.01) {
+      const width = Math.abs(end.x - start.x)
+      const height = Math.abs(end.y - start.y)
+
+      if (width >= 0.01 && height >= 0.01) {
+        setShapes((prev) => {
+          const label = getNextSlabLabel(prev)
+          const newShape: Shape = {
+            id: generateId(),
+            type: 'rectangle',
+            points: [
+              start,
+              { x: end.x, y: start.y },
+              end,
+              { x: start.x, y: end.y },
+            ],
+            properties: {
+              width,
+              height,
+              label,
+              area: width * height,
+            },
+          }
+          return [...prev, newShape]
+        })
+        return true
+      }
+      return false
+    },
+    [checkLimits],
+  )
+
+  const addPolygon = useCallback(
+    async (points: Point[]) => {
+      if (!(await checkLimits())) return
+
       setShapes((prev) => {
         const label = getNextSlabLabel(prev)
         const newShape: Shape = {
           id: generateId(),
-          type: 'rectangle',
-          points: [
-            start,
-            { x: end.x, y: start.y },
-            end,
-            { x: start.x, y: end.y },
-          ],
+          type: 'polygon',
+          points,
           properties: {
-            width,
-            height,
+            area: calculatePolygonArea(points),
             label,
-            area: width * height,
           },
         }
         return [...prev, newShape]
       })
-      return true
-    }
-    return false
-  }, [])
-
-  const addPolygon = useCallback((points: Point[]) => {
-    setShapes((prev) => {
-      const label = getNextSlabLabel(prev)
-      const newShape: Shape = {
-        id: generateId(),
-        type: 'polygon',
-        points,
-        properties: {
-          area: calculatePolygonArea(points),
-          label,
-        },
-      }
-      return [...prev, newShape]
-    })
-  }, [])
+    },
+    [checkLimits],
+  )
 
   return (
     <DrawingContext.Provider
@@ -241,6 +286,7 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
         setProjectName,
         isLoadingProject,
         setIsLoadingProject,
+        checkLimits,
       }}
     >
       {children}
