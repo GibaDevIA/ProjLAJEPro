@@ -4,6 +4,7 @@ export interface Profile {
   id: string
   email: string | null
   full_name: string | null
+  plan_id: string
   created_at: string
   updated_at: string | null
 }
@@ -18,13 +19,18 @@ export const getProfile = async (userId: string) => {
   return { data: data as Profile | null, error }
 }
 
-export const createProfile = async (userId: string, email: string | null) => {
+export const createProfile = async (
+  userId: string,
+  email: string | null,
+  planId: string,
+) => {
   const { data, error } = await supabase
     .from('profiles')
     .insert({
       id: userId,
       email: email,
       full_name: null,
+      plan_id: planId,
     })
     .select()
     .single()

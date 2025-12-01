@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,6 +22,8 @@ const Register = () => {
   const [loading, setLoading] = useState(false)
   const { signUp } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const plan = searchParams.get('plan')
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,7 +36,7 @@ const Register = () => {
     setLoading(true)
 
     try {
-      const { error } = await signUp(email, password)
+      const { error } = await signUp(email, password, plan || 'free')
       if (error) {
         toast.error('Erro ao registrar: ' + error.message)
       } else {
@@ -49,6 +51,11 @@ const Register = () => {
     }
   }
 
+  const getPlanName = (planSlug: string | null) => {
+    if (planSlug === 'professional') return 'Profissional'
+    return 'Gratuito 7 dias'
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
       <Card className="w-full max-w-md shadow-lg">
@@ -57,7 +64,16 @@ const Register = () => {
             Registro - ProjLAJE
           </CardTitle>
           <CardDescription className="text-center">
-            Crie sua conta para começar
+            {plan ? (
+              <>
+                Criando conta para o plano{' '}
+                <span className="font-semibold text-primary">
+                  {getPlanName(plan)}
+                </span>
+              </>
+            ) : (
+              'Crie sua conta para começar'
+            )}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleRegister}>

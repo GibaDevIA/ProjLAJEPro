@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom'
 
 const plans = [
   {
+    id: 'free',
     name: 'Gratuito 7 dias',
     priceDisplay: (
       <span className="text-4xl font-extrabold text-slate-900">R$ 0</span>
@@ -27,6 +28,7 @@ const plans = [
     highlight: false,
   },
   {
+    id: 'professional',
     name: 'Profissional',
     priceDisplay: (
       <div className="flex flex-col">
@@ -106,7 +108,7 @@ export const PricingSection = () => {
                 <Button
                   className="w-full"
                   variant={plan.highlight ? 'default' : 'outline'}
-                  onClick={() => navigate('/register')}
+                  onClick={() => navigate(`/register?plan=${plan.id}`)}
                 >
                   {plan.buttonText}
                 </Button>

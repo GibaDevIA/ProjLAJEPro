@@ -13,7 +13,11 @@ import { toast } from 'sonner'
 interface AuthContextType {
   user: User | null
   session: Session | null
-  signUp: (email: string, password: string) => Promise<{ error: any }>
+  signUp: (
+    email: string,
+    password: string,
+    plan?: string,
+  ) => Promise<{ error: any }>
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signInWithGoogle: () => Promise<{ error: any }>
   signOut: () => Promise<{ error: any }>
@@ -49,14 +53,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) {
         console.error('Error fetching user profile:', error)
-        // If we can't fetch profile, we assume safe default or handle error
-        // For security, if RLS blocks or error, maybe assume not admin.
-        // But we need to know if is_active check failed.
         return false
       }
 
       if (data) {
-        // Check if user is active
         if (data.is_active === false) {
           await supabase.auth.signOut()
           toast.error(
@@ -64,11 +64,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           )
           return false
         }
-        // Update admin status
         setIsAdmin(!!data.is_admin)
         return true
       }
-      return true // Default to true if no profile found (should exist via trigger)
+      return true
     } catch (error) {
       console.error('Unexpected error in checkUserProfile:', error)
       return false
@@ -76,7 +75,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   useEffect(() => {
-    // Set up auth state listener
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -86,12 +84,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!session) {
         setIsAdmin(false)
       }
-      // Note: We do not set loading(false) here because we want to wait for profile check
-      // in the initSession logic. For subsequent events (like token refresh),
-      // the user is already logged in so loading is already false.
     })
 
-    // Check for existing session on mount
     const initSession = async () => {
       try {
         const {
@@ -115,20 +109,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe()
   }, [checkUserProfile])
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, plan?: string) => {
     const redirectUrl = `${window.location.origin}/`
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: redirectUrl,
+        data: {
+          plan: plan || 'free',
+        },
       },
     })
     return { error }
   }
 
   const signIn = async (email: string, password: string) => {
-    // 1. Authenticate with Supabase
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -138,11 +134,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { error }
     }
 
-    // 2. If successful, verify profile status immediately
     if (data.session?.user) {
       const isActive = await checkUserProfile(data.session.user.id)
       if (!isActive) {
-        // checkUserProfile handles the signOut and toast
         return { error: { message: 'Conta inativa.' } }
       }
     }
