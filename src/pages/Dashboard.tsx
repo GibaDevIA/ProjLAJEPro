@@ -18,11 +18,18 @@ import {
   FileEdit,
   Trash2,
   CreditCard,
+  AlertTriangle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getProjects, createProject, deleteProject } from '@/services/projects'
 import { Project } from '@/services/projects'
-import { format } from 'date-fns'
+import {
+  getSubscription,
+  checkMaxProjectsLimit,
+  Subscription,
+  Plan,
+} from '@/services/subscription'
+import { format, differenceInDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
   Dialog,
@@ -44,12 +51,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 
 const Dashboard = () => {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const [projects, setProjects] = useState<Project[]>([])
   const [loadingProjects, setLoadingProjects] = useState(true)
+
+  // Subscription State
+  const [subscription, setSubscription] = useState<
+    (Subscription & { plans: Plan }) | null
+  >(null)
+  const [daysRemaining, setDaysRemaining] = useState<number | null>(null)
 
   // Create Project State
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
@@ -71,11 +85,32 @@ const Dashboard = () => {
     setLoadingProjects(false)
   }, [])
 
+  const fetchSubscription = useCallback(async () => {
+    if (!user) return
+    const { data, error } = await getSubscription(user.id)
+    if (error) {
+      console.error('Error fetching subscription:', error)
+    } else if (data) {
+      setSubscription(data)
+      if (
+        data.status === 'trialing' &&
+        data.trial_end &&
+        data.plans.name === 'Free Trial'
+      ) {
+        const end = new Date(data.trial_end)
+        const now = new Date()
+        const diff = differenceInDays(end, now)
+        setDaysRemaining(diff)
+      }
+    }
+  }, [user])
+
   useEffect(() => {
     if (user) {
       fetchProjects()
+      fetchSubscription()
     }
-  }, [user, fetchProjects])
+  }, [user, fetchProjects, fetchSubscription])
 
   const handleLogout = async () => {
     try {
@@ -88,6 +123,27 @@ const Dashboard = () => {
     } catch (e) {
       toast.error('Erro inesperado ao sair')
     }
+  }
+
+  const openCreateDialog = async () => {
+    if (!user) return
+
+    // Check Limits
+    const limitCheck = await checkMaxProjectsLimit(user.id)
+    if (limitCheck.error) {
+      toast.error('Erro ao verificar limites do plano.')
+      return
+    }
+
+    if (limitCheck.allowed === false) {
+      toast.error(
+        `Você atingiu o limite de ${limitCheck.limit} projetos do seu plano atual.`,
+      )
+      // Optional: Suggest upgrade
+      return
+    }
+
+    setIsCreateDialogOpen(true)
   }
 
   const handleCreateProject = async (e: React.FormEvent) => {
@@ -152,11 +208,45 @@ const Dashboard = () => {
           </p>
         </div>
 
+        {/* Free Trial Notification */}
+        {subscription &&
+          subscription.status === 'trialing' &&
+          daysRemaining !== null && (
+            <div className="max-w-5xl mx-auto mb-8">
+              <Alert
+                variant={daysRemaining <= 3 ? 'destructive' : 'default'}
+                className={
+                  daysRemaining <= 3
+                    ? 'bg-red-50 border-red-200 text-red-800'
+                    : 'bg-blue-50 border-blue-200 text-blue-800'
+                }
+              >
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Período de Avaliação</AlertTitle>
+                <AlertDescription className="flex justify-between items-center flex-wrap gap-2">
+                  <span>
+                    Você está usando o plano Free Trial. Seu acesso de avaliação
+                    expira em <strong>{Math.max(0, daysRemaining)} dias</strong>
+                    .
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="bg-white whitespace-nowrap"
+                    asChild
+                  >
+                    <Link to="/pricing">Assinar Agora</Link>
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
+
         <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-12">
           {/* New Project Card */}
           <Card
             className="hover:shadow-lg transition-all duration-300 border-primary/20 cursor-pointer group bg-blue-50/50"
-            onClick={() => setIsCreateDialogOpen(true)}
+            onClick={openCreateDialog}
           >
             <CardHeader>
               <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
@@ -195,7 +285,9 @@ const Dashboard = () => {
                 <CreditCard className="h-6 w-6 text-slate-700" />
                 Assinatura
               </CardTitle>
-              <CardDescription>Gerencie seu plano.</CardDescription>
+              <CardDescription>
+                {subscription?.plans?.name || 'Gerencie seu plano'}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Button asChild variant="outline" className="w-full">
@@ -233,9 +325,7 @@ const Dashboard = () => {
                 <p className="text-muted-foreground mb-4">
                   Crie seu primeiro projeto para começar a desenhar.
                 </p>
-                <Button onClick={() => setIsCreateDialogOpen(true)}>
-                  Criar Novo Projeto
-                </Button>
+                <Button onClick={openCreateDialog}>Criar Novo Projeto</Button>
               </CardContent>
             </Card>
           ) : (

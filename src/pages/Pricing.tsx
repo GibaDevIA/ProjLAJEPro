@@ -18,7 +18,13 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { Loader2, Check, LayoutTemplate, ArrowLeft } from 'lucide-react'
+import {
+  Loader2,
+  Check,
+  LayoutTemplate,
+  ArrowLeft,
+  MessageCircle,
+} from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 
 const Pricing = () => {
@@ -118,6 +124,13 @@ const Pricing = () => {
     }
   }
 
+  const handleWhatsAppContact = () => {
+    const message = encodeURIComponent(
+      'Olá! Gostaria de saber mais sobre o plano Premium do ProjLAJE.',
+    )
+    window.open(`https://wa.me/5511999999999?text=${message}`, '_blank')
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -145,15 +158,25 @@ const Pricing = () => {
               ProjLAJE
             </span>
           </div>
-          {user ? (
-            <Button variant="ghost" onClick={() => navigate('/dashboard')}>
-              Ir para Dashboard
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="gap-2 text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
+              onClick={handleWhatsAppContact}
+            >
+              <MessageCircle className="h-4 w-4" />
+              Fale no WhatsApp
             </Button>
-          ) : (
-            <Button variant="ghost" onClick={() => navigate('/login')}>
-              Entrar
-            </Button>
-          )}
+            {user ? (
+              <Button variant="ghost" onClick={() => navigate('/dashboard')}>
+                Ir para Dashboard
+              </Button>
+            ) : (
+              <Button variant="ghost" onClick={() => navigate('/login')}>
+                Entrar
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -171,8 +194,13 @@ const Pricing = () => {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto justify-center">
           {plans.map((plan) => {
             const isCurrentPlan = currentPlanId === plan.id
-            const isProfessional = plan.name === 'Profissional'
+            const isProfessional =
+              plan.name === 'Profissional' ||
+              plan.name.toLowerCase().includes('professional')
             const isFree = plan.price === 0
+
+            // Display max projects if available (it might be in future plans)
+            const maxProjects = (plan as any).max_projects
 
             return (
               <Card
@@ -224,6 +252,14 @@ const Pricing = () => {
                           : 'Panos ilimitados'}
                       </span>
                     </li>
+                    {maxProjects !== null && maxProjects !== undefined && (
+                      <li className="flex items-center gap-2 text-slate-600">
+                        <Check className="h-4 w-4 text-primary shrink-0" />
+                        <span className="text-sm">
+                          Limite de {maxProjects} projetos
+                        </span>
+                      </li>
+                    )}
                     {isProfessional && (
                       <>
                         <li className="flex items-center gap-2 text-slate-600">
@@ -257,7 +293,7 @@ const Pricing = () => {
                   </ul>
                 </CardContent>
 
-                <CardFooter>
+                <CardFooter className="flex flex-col gap-3">
                   <Button
                     className="w-full"
                     variant={
@@ -286,6 +322,16 @@ const Pricing = () => {
                       'Assinar Agora'
                     )}
                   </Button>
+                  {isProfessional && !isCurrentPlan && (
+                    <Button
+                      className="w-full text-green-700 border-green-200 hover:bg-green-50"
+                      variant="outline"
+                      onClick={handleWhatsAppContact}
+                    >
+                      <MessageCircle className="mr-2 h-4 w-4" />
+                      Assinar via WhatsApp
+                    </Button>
+                  )}
                 </CardFooter>
               </Card>
             )

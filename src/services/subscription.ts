@@ -18,6 +18,7 @@ export interface Plan {
   description: string | null
   price: number
   max_panos_per_project: number | null
+  max_projects: number | null
   duration_days: number | null
   stripe_price_id: string
   is_active: boolean
@@ -102,7 +103,7 @@ export const checkProjectLimit = async (
     .eq('id', profile.plan_id)
     .single()
 
-  if (!plan) return { allowed: true, limit: Infinity } // Should not happen, but safe fallback
+  if (!plan) return { allowed: true, limit: Infinity }
 
   if (plan.max_panos_per_project === null)
     return { allowed: true, limit: Infinity }
@@ -110,5 +111,44 @@ export const checkProjectLimit = async (
   return {
     allowed: currentCount < plan.max_panos_per_project,
     limit: plan.max_panos_per_project,
+  }
+}
+
+export const checkMaxProjectsLimit = async (userId: string) => {
+  // 1. Get projects count
+  const { count, error: countError } = await supabase
+    .from('projects')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+
+  if (countError) return { allowed: false, error: countError }
+
+  // 2. Get user plan
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('plan_id')
+    .eq('id', userId)
+    .single()
+
+  if (!profile) return { allowed: false, error: 'Profile not found' }
+
+  const { data: plan } = await supabase
+    .from('plans')
+    .select('*')
+    .eq('id', profile.plan_id)
+    .single()
+
+  if (!plan) return { allowed: true, limit: Infinity, current: count }
+
+  // Cast to any to access max_projects since it might not be in the generated types yet
+  const maxProjects = (plan as any).max_projects as number | null
+
+  if (maxProjects === null || maxProjects === undefined)
+    return { allowed: true, limit: Infinity, current: count }
+
+  return {
+    allowed: count !== null && count < maxProjects,
+    limit: maxProjects,
+    current: count || 0,
   }
 }

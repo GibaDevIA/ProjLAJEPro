@@ -76,3 +76,12 @@ export const deleteProject = async (id: string) => {
   const { error } = await supabase.from('projects').delete().eq('id', id)
   return { error }
 }
+
+export const getUserProjectsCount = async (userId: string) => {
+  const { count, error } = await supabase
+    .from('projects')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+
+  return { count, error }
+}
