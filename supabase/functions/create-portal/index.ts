@@ -1,15 +1,14 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { stripe } from '../_shared/stripe.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+import { stripe } from '../_shared/stripe.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const supabase = createClient(
+    const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
@@ -21,7 +20,7 @@ serve(async (req) => {
 
     const {
       data: { user },
-    } = await supabase.auth.getUser()
+    } = await supabaseClient.auth.getUser()
 
     if (!user) {
       return new Response('Unauthorized', { status: 401, headers: corsHeaders })
@@ -29,7 +28,7 @@ serve(async (req) => {
 
     const { returnUrl } = await req.json()
 
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseClient
       .from('profiles')
       .select('stripe_customer_id')
       .eq('id', user.id)
@@ -46,11 +45,13 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
     })
   } catch (error) {
+    console.error(error)
     return new Response(JSON.stringify({ error: error.message }), {
-      status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400,
     })
   }
 })

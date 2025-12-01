@@ -1,161 +1,143 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { stripe } from '../_shared/stripe.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+import { stripe, Stripe } from '../_shared/stripe.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-)
+const cryptoProvider = Stripe.createSubtleCryptoProvider()
 
-serve(async (req) => {
-  const signature = req.headers.get('stripe-signature')
+Deno.serve(async (req) => {
+  const signature = req.headers.get('Stripe-Signature')
+  const body = await req.text()
+  const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')
 
-  if (!signature) {
-    return new Response('No signature', { status: 400 })
+  if (!signature || !webhookSecret) {
+    return new Response('Webhook secret not configured or signature missing', {
+      status: 400,
+    })
   }
 
+  let event
   try {
-    const body = await req.text()
-    const event = stripe.webhooks.constructEvent(
+    event = await stripe.webhooks.constructEventAsync(
       body,
       signature,
-      Deno.env.get('STRIPE_WEBHOOK_SECRET') || '',
+      webhookSecret,
+      undefined,
+      cryptoProvider,
     )
+  } catch (err) {
+    console.error(`Webhook signature verification failed.`, err.message)
+    return new Response(`Webhook Error: ${err.message}`, { status: 400 })
+  }
 
+  const supabaseAdmin = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+  )
+
+  try {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object
-        const customerId = session.customer
-        const subscriptionId = session.subscription
+        const subscriptionId = session.subscription as string
+        const customerId = session.customer as string
+        const userId = session.subscription_data?.metadata?.userId
 
-        // Find profile by customer ID
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('stripe_customer_id', customerId)
-          .single()
+        if (userId) {
+          await supabaseAdmin
+            .from('profiles')
+            .update({ stripe_customer_id: customerId })
+            .eq('id', userId)
+        }
 
-        if (profile) {
-          // Get the 'Profissional' plan ID
-          const { data: plan } = await supabase
-            .from('plans')
-            .select('id')
-            .eq('name', 'Profissional')
-            .single()
-
-          if (plan) {
-            // Update profile plan
-            await supabase
-              .from('profiles')
-              .update({ plan_id: plan.id })
-              .eq('id', profile.id)
-
-            // Update subscription
-            await supabase.from('subscriptions').upsert(
-              {
-                user_id: profile.id,
-                plan_id: plan.id,
-                stripe_subscription_id: subscriptionId,
-                status: 'active',
-                updated_at: new Date().toISOString(),
-              },
-              { onConflict: 'user_id' },
-            )
-          }
+        // If there is a subscription, retrieve it and update database
+        if (subscriptionId) {
+          const subscription =
+            await stripe.subscriptions.retrieve(subscriptionId)
+          await upsertSubscription(supabaseAdmin, subscription, userId)
         }
         break
       }
-      case 'customer.subscription.updated': {
-        const subscription = event.data.object
-        const status = subscription.status
-        const customerId = subscription.customer
-
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('stripe_customer_id', customerId)
-          .single()
-
-        if (profile) {
-          await supabase
-            .from('subscriptions')
-            .update({
-              status: status,
-              current_period_start: new Date(
-                subscription.current_period_start * 1000,
-              ).toISOString(),
-              current_period_end: new Date(
-                subscription.current_period_end * 1000,
-              ).toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .eq('user_id', profile.id)
-
-          // If status is not active, maybe downgrade plan?
-          // User story: "When a user cancels... remain active until end of period".
-          // Stripe usually keeps status active until end of period if using 'cancel_at_period_end'.
-          // If status becomes 'canceled' or 'past_due', we might need to act.
-
-          if (status === 'canceled' || status === 'unpaid') {
-            // Revert to free plan?
-            // Usually handled by a scheduled job or subsequent event, but let's keep it simple
-            const { data: freePlan } = await supabase
-              .from('plans')
-              .select('id')
-              .eq('name', 'Gratuito 7 dias')
-              .single()
-            if (freePlan) {
-              // Only revert profile plan if fully canceled
-              if (status === 'canceled') {
-                await supabase
-                  .from('profiles')
-                  .update({ plan_id: freePlan.id })
-                  .eq('id', profile.id)
-              }
-            }
-          }
-        }
-        break
-      }
+      case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
         const subscription = event.data.object
-        const customerId = subscription.customer
-
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('stripe_customer_id', customerId)
-          .single()
-
-        if (profile) {
-          await supabase
-            .from('subscriptions')
-            .update({
-              status: 'canceled',
-              updated_at: new Date().toISOString(),
-            })
-            .eq('user_id', profile.id)
-
-          const { data: freePlan } = await supabase
-            .from('plans')
-            .select('id')
-            .eq('name', 'Gratuito 7 dias')
-            .single()
-          if (freePlan) {
-            await supabase
-              .from('profiles')
-              .update({ plan_id: freePlan.id })
-              .eq('id', profile.id)
-          }
-        }
+        await upsertSubscription(supabaseAdmin, subscription)
         break
       }
     }
 
-    return new Response(JSON.stringify({ received: true }), {
-      headers: { 'Content-Type': 'application/json' },
+    return new Response(JSON.stringify({ received: true }), { status: 200 })
+  } catch (error) {
+    console.error(error)
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 400,
     })
-  } catch (err) {
-    return new Response(`Webhook Error: ${err.message}`, { status: 400 })
   }
 })
+
+async function upsertSubscription(
+  supabaseAdmin: any,
+  subscription: any,
+  userId?: string,
+) {
+  const status = subscription.status
+  const planId = subscription.items.data[0].price.id
+
+  // Find the internal plan ID based on the Stripe Price ID
+  const { data: planData } = await supabaseAdmin
+    .from('plans')
+    .select('id')
+    .eq('stripe_price_id', planId)
+    .single()
+
+  if (!planData) {
+    console.error('Plan not found for stripe price id:', planId)
+    return
+  }
+
+  // If userId is not provided (e.g. in updates), find it via customer id
+  let targetUserId = userId
+  if (!targetUserId) {
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('stripe_customer_id', subscription.customer)
+      .single()
+    targetUserId = profile?.id
+  }
+
+  if (!targetUserId) {
+    console.error('User not found for subscription:', subscription.id)
+    return
+  }
+
+  const subscriptionData = {
+    id: subscription.id,
+    user_id: targetUserId,
+    status: status,
+    plan_id: planData.id,
+    current_period_start: new Date(
+      subscription.current_period_start * 1000,
+    ).toISOString(),
+    current_period_end: new Date(
+      subscription.current_period_end * 1000,
+    ).toISOString(),
+    cancel_at_period_end: subscription.cancel_at_period_end,
+    stripe_subscription_id: subscription.id,
+  }
+
+  // Also update user profile with the new plan
+  if (status === 'active' || status === 'trialing') {
+    await supabaseAdmin
+      .from('profiles')
+      .update({ plan_id: planData.id })
+      .eq('id', targetUserId)
+  }
+
+  // Upsert subscription record
+  const { error } = await supabaseAdmin
+    .from('subscriptions')
+    .upsert(subscriptionData)
+
+  if (error) {
+    console.error('Error upserting subscription:', error)
+  }
+}

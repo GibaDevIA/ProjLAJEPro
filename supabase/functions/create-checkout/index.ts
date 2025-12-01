@@ -1,15 +1,15 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { stripe } from '../_shared/stripe.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+import { stripe } from '../_shared/stripe.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
-serve(async (req) => {
+Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const supabase = createClient(
+    const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
@@ -21,7 +21,7 @@ serve(async (req) => {
 
     const {
       data: { user },
-    } = await supabase.auth.getUser()
+    } = await supabaseClient.auth.getUser()
 
     if (!user) {
       return new Response('Unauthorized', { status: 401, headers: corsHeaders })
@@ -33,8 +33,7 @@ serve(async (req) => {
       throw new Error('Price ID is required')
     }
 
-    // Get Profile to check for existing customer ID
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseClient
       .from('profiles')
       .select('stripe_customer_id, email')
       .eq('id', user.id)
@@ -51,11 +50,11 @@ serve(async (req) => {
       })
       customerId = customer.id
 
-      // Update profile via Service Role client
       const supabaseAdmin = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       )
+
       await supabaseAdmin
         .from('profiles')
         .update({ stripe_customer_id: customerId })
@@ -77,15 +76,22 @@ serve(async (req) => {
       mode: 'subscription',
       success_url: success_url,
       cancel_url: cancel_url,
+      subscription_data: {
+        metadata: {
+          userId: user.id,
+        },
+      },
     })
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
     })
   } catch (error) {
+    console.error(error)
     return new Response(JSON.stringify({ error: error.message }), {
-      status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400,
     })
   }
 })

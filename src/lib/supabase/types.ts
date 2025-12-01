@@ -25,6 +25,7 @@ export type Database = {
           max_panos_per_project: number | null
           name: string
           price: number
+          stripe_price_id: string
           updated_at: string | null
         }
         Insert: {
@@ -36,6 +37,7 @@ export type Database = {
           max_panos_per_project?: number | null
           name: string
           price: number
+          stripe_price_id: string
           updated_at?: string | null
         }
         Update: {
@@ -47,6 +49,7 @@ export type Database = {
           max_panos_per_project?: number | null
           name?: string
           price?: number
+          stripe_price_id?: string
           updated_at?: string | null
         }
         Relationships: []
