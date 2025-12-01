@@ -33,6 +33,43 @@ Deno.serve(async (req) => {
       throw new Error('Price ID is required')
     }
 
+    // Log checkout initiation
+    console.log(
+      `Initiating checkout for user ${user.id} with priceId: ${priceId}`,
+    )
+
+    // Lookup plan details for logging and validation
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    )
+
+    const { data: plan, error: planError } = await supabaseAdmin
+      .from('plans')
+      .select('name, is_active, stripe_price_id')
+      .eq('stripe_price_id', priceId)
+      .maybeSingle()
+
+    if (planError) {
+      console.error('Error fetching plan details:', planError)
+    }
+
+    if (plan) {
+      console.log(
+        `Plan found: ${plan.name}, Active: ${plan.is_active}, ID: ${plan.stripe_price_id}`,
+      )
+      if (!plan.is_active) {
+        console.warn(`Attempt to checkout inactive plan: ${plan.name}`)
+        // We could throw here, but logic just said to log.
+        // However AC says "verify that the retrieved... plan is active".
+        // It is safer to block it if inactive.
+        throw new Error('Selected plan is not active.')
+      }
+    } else {
+      console.warn(`No plan found for priceId: ${priceId}`)
+      throw new Error('Plan not found.')
+    }
+
     const { data: profile } = await supabaseClient
       .from('profiles')
       .select('stripe_customer_id, email')
@@ -49,11 +86,6 @@ Deno.serve(async (req) => {
         },
       })
       customerId = customer.id
-
-      const supabaseAdmin = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      )
 
       await supabaseAdmin
         .from('profiles')
@@ -83,12 +115,16 @@ Deno.serve(async (req) => {
       },
     })
 
+    console.log(
+      `Checkout session created successfully for user ${user.id}. Session ID: ${session.id}`,
+    )
+
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
   } catch (error) {
-    console.error(error)
+    console.error('Checkout error:', error)
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,

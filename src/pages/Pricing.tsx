@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
-import { getPlans, createCheckoutSession, Plan } from '@/services/subscription'
+import {
+  getPlans,
+  createCheckoutSession,
+  getPlanByName,
+  Plan,
+} from '@/services/subscription'
 import { getProfile } from '@/services/profile'
 import { Button } from '@/components/ui/button'
 import {
@@ -67,18 +72,36 @@ const Pricing = () => {
       return
     }
 
-    if (!plan.stripe_price_id) {
-      // Assuming free plan doesn't have a stripe price ID for checkout or it's handled differently
-      // If it's a free plan, maybe just updating the profile plan_id is enough?
-      // For this user story, we focus on "Subscribe to a selected plan" which usually implies payment.
-      // If the user selects a free plan while on a paid plan, they might need to cancel via portal.
-      // But here we assume we are selecting a paid plan.
-      return
-    }
-
     setProcessingId(plan.id)
     try {
-      const { data, error } = await createCheckoutSession(plan.stripe_price_id)
+      let stripePriceId = plan.stripe_price_id
+
+      // Dynamic retrieval and validation for "Profissional" plan
+      if (plan.name === 'Profissional') {
+        const { data: professionalPlan, error: planError } =
+          await getPlanByName('Profissional')
+
+        if (
+          planError ||
+          !professionalPlan ||
+          !professionalPlan.is_active ||
+          !professionalPlan.stripe_price_id
+        ) {
+          toast.error(
+            'Erro ao iniciar checkout: Plano Profissional não encontrado.',
+          )
+          setProcessingId(null)
+          return
+        }
+        stripePriceId = professionalPlan.stripe_price_id
+      }
+
+      if (!stripePriceId) {
+        setProcessingId(null)
+        return
+      }
+
+      const { data, error } = await createCheckoutSession(stripePriceId)
 
       if (error) {
         toast.error(

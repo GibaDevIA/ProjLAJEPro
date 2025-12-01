@@ -53,6 +53,16 @@ export const getPlan = async (planId: string) => {
   return { data: data as Plan | null, error }
 }
 
+export const getPlanByName = async (name: string) => {
+  const { data, error } = await supabase
+    .from('plans')
+    .select('*')
+    .eq('name', name)
+    .maybeSingle()
+
+  return { data: data as Plan | null, error }
+}
+
 export const createCheckoutSession = async (priceId: string) => {
   const { data, error } = await supabase.functions.invoke('create-checkout', {
     body: {
