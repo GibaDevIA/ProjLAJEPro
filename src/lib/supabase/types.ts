@@ -60,6 +60,7 @@ export type Database = {
           is_active: boolean
           is_admin: boolean
           plan_id: string
+          stripe_customer_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -70,6 +71,7 @@ export type Database = {
           is_active?: boolean
           is_admin?: boolean
           plan_id: string
+          stripe_customer_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -80,6 +82,7 @@ export type Database = {
           is_active?: boolean
           is_admin?: boolean
           plan_id?: string
+          stripe_customer_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -120,6 +123,63 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: 'projects_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          created_at: string | null
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          plan_id: string
+          status: string
+          stripe_subscription_id: string | null
+          trial_end: string | null
+          trial_start: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          plan_id: string
+          status: string
+          stripe_subscription_id?: string | null
+          trial_end?: string | null
+          trial_start?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          plan_id?: string
+          status?: string
+          stripe_subscription_id?: string | null
+          trial_end?: string | null
+          trial_start?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'subscriptions_plan_id_fkey'
+            columns: ['plan_id']
+            isOneToOne: false
+            referencedRelation: 'plans'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'subscriptions_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
             referencedRelation: 'profiles'

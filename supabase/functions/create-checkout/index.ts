@@ -27,7 +27,11 @@ serve(async (req) => {
       return new Response('Unauthorized', { status: 401, headers: corsHeaders })
     }
 
-    const { priceId, returnUrl } = await req.json()
+    const { priceId, returnUrl, successUrl, cancelUrl } = await req.json()
+
+    if (!priceId) {
+      throw new Error('Price ID is required')
+    }
 
     // Get Profile to check for existing customer ID
     const { data: profile } = await supabase
@@ -47,7 +51,7 @@ serve(async (req) => {
       })
       customerId = customer.id
 
-      // Update profile via Service Role client (to bypass RLS if needed, though user can usually update own profile if policy allows)
+      // Update profile via Service Role client
       const supabaseAdmin = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -58,6 +62,10 @@ serve(async (req) => {
         .eq('id', user.id)
     }
 
+    const success_url =
+      successUrl || `${returnUrl}?session_id={CHECKOUT_SESSION_ID}`
+    const cancel_url = cancelUrl || `${returnUrl}?canceled=true`
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       line_items: [
@@ -67,8 +75,8 @@ serve(async (req) => {
         },
       ],
       mode: 'subscription',
-      success_url: `${returnUrl}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${returnUrl}?canceled=true`,
+      success_url: success_url,
+      cancel_url: cancel_url,
     })
 
     return new Response(JSON.stringify({ url: session.url }), {

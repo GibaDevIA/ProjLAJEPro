@@ -19,6 +19,8 @@ export interface Plan {
   price: number
   max_panos_per_project: number | null
   duration_days: number | null
+  stripe_price_id: string
+  is_active: boolean
 }
 
 export const getSubscription = async (userId: string) => {
@@ -29,6 +31,16 @@ export const getSubscription = async (userId: string) => {
     .maybeSingle()
 
   return { data: data as (Subscription & { plans: Plan }) | null, error }
+}
+
+export const getPlans = async () => {
+  const { data, error } = await supabase
+    .from('plans')
+    .select('*')
+    .eq('is_active', true)
+    .order('price', { ascending: true })
+
+  return { data: data as Plan[] | null, error }
 }
 
 export const getPlan = async (planId: string) => {
@@ -42,13 +54,12 @@ export const getPlan = async (planId: string) => {
 }
 
 export const createCheckoutSession = async (priceId: string) => {
-  // Assuming a hardcoded price ID for simplicity or retrieved from env/constants
-  // In a real app, this comes from the plan configuration
-  // For this demo, we pass a dummy or expect the function to handle it if not passed
   const { data, error } = await supabase.functions.invoke('create-checkout', {
     body: {
-      priceId: priceId, // e.g. 'price_123...'
-      returnUrl: window.location.href,
+      priceId: priceId,
+      successUrl: `${window.location.origin}/success`,
+      cancelUrl: `${window.location.origin}/cancel`,
+      returnUrl: window.location.href, // Fallback
     },
   })
   return { data, error }
