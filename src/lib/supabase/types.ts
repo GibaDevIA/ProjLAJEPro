@@ -23,6 +23,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           max_panos_per_project: number | null
+          max_projects: number | null
           name: string
           price: number
           stripe_price_id: string
@@ -35,6 +36,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           max_panos_per_project?: number | null
+          max_projects?: number | null
           name: string
           price: number
           stripe_price_id: string
@@ -47,6 +49,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           max_panos_per_project?: number | null
+          max_projects?: number | null
           name?: string
           price?: number
           stripe_price_id?: string

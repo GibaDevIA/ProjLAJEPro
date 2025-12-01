@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import {
   getSubscription,
-  getPlans,
-  createCheckoutSession,
   createPortalSession,
   Subscription as SubscriptionType,
   Plan,
@@ -24,6 +22,7 @@ import {
   CheckCircle,
   AlertTriangle,
   ArrowLeft,
+  MessageCircle,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
@@ -36,7 +35,6 @@ export default function Subscription() {
   const [subscription, setSubscription] = useState<
     (SubscriptionType & { plans: Plan }) | null
   >(null)
-  const [plans, setPlans] = useState<Plan[]>([])
   const [processing, setProcessing] = useState(false)
 
   // Fetch user subscription
@@ -53,55 +51,19 @@ export default function Subscription() {
     setLoading(false)
   }, [user])
 
-  // Fetch available plans
-  useEffect(() => {
-    const fetchPlans = async () => {
-      const { data, error } = await getPlans()
-      if (!error && data) {
-        setPlans(data)
-      }
-    }
-    fetchPlans()
-  }, [])
-
   useEffect(() => {
     if (user) {
       fetchSubscription()
     }
   }, [user, fetchSubscription])
 
-  const handleUpgrade = async () => {
-    setProcessing(true)
-    try {
-      // Find the Professional plan dynamically
-      // We check for both 'Professional' (English) and 'Profissional' (Portuguese) to be safe
-      const professionalPlan = plans.find(
-        (p) => p.name === 'Professional' || p.name === 'Profissional',
-      )
-
-      if (!professionalPlan) {
-        throw new Error('Plano Profissional não encontrado.')
-      }
-
-      if (!professionalPlan.stripe_price_id) {
-        throw new Error('ID do preço Stripe não configurado para este plano.')
-      }
-
-      const { data, error } = await createCheckoutSession(
-        professionalPlan.stripe_price_id,
-      )
-
-      if (error) throw error
-      if (data?.url) {
-        window.location.href = data.url
-      }
-    } catch (error: any) {
-      toast.error(
-        'Erro ao iniciar checkout: ' + (error.message || 'Erro desconhecido'),
-      )
-    } finally {
-      setProcessing(false)
-    }
+  const handleUpgrade = () => {
+    const phoneNumber = '5515991697674'
+    const message = encodeURIComponent(
+      'Olá, gostaria de fazer upgrade para o plano Profissional.',
+    )
+    const url = `https://wa.me/${phoneNumber}?text=${message}`
+    window.open(url, '_blank')
   }
 
   const handleManageBilling = async () => {
@@ -239,14 +201,9 @@ export default function Subscription() {
               {!isPro && (
                 <Button
                   onClick={handleUpgrade}
-                  disabled={processing}
                   className="bg-gradient-to-r from-indigo-600 to-primary"
                 >
-                  {processing ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                  )}
+                  <MessageCircle className="mr-2 h-4 w-4" />
                   Upgrade para Profissional
                 </Button>
               )}
@@ -311,8 +268,8 @@ export default function Subscription() {
             <CardFooter className="bg-muted/20 p-4 justify-center">
               <Button
                 variant="link"
-                onClick={handleManageBilling}
-                disabled={processing}
+                disabled={true}
+                className="text-muted-foreground opacity-50"
               >
                 Acessar Portal Financeiro
               </Button>
