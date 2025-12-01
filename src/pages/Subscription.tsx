@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   MessageCircle,
+  Phone,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
@@ -197,15 +198,21 @@ export default function Subscription() {
                 </p>
               )}
             </CardContent>
-            <CardFooter className="flex gap-3 justify-end">
+            <CardFooter className="flex flex-col sm:flex-row gap-3 justify-end items-center">
               {!isPro && (
-                <Button
-                  onClick={handleUpgrade}
-                  className="bg-gradient-to-r from-indigo-600 to-primary"
-                >
-                  <MessageCircle className="mr-2 h-4 w-4" />
-                  Upgrade para Profissional
-                </Button>
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <Phone className="h-4 w-4" />
+                    (15) 99169-7674
+                  </div>
+                  <Button
+                    onClick={handleUpgrade}
+                    className="bg-gradient-to-r from-indigo-600 to-primary w-full sm:w-auto"
+                  >
+                    <MessageCircle className="mr-2 h-4 w-4" />
+                    Upgrade para Profissional
+                  </Button>
+                </div>
               )}
               {(isPro || subscription?.stripe_subscription_id) && (
                 <Button

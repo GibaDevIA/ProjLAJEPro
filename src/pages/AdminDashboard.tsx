@@ -2,10 +2,13 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import {
   getUsers,
+  getAllPlans,
   updateUserRole,
   updateUserStatus,
   updateUserDetails,
+  updateUserPlan,
   AdminProfile,
+  Plan,
 } from '@/services/admin'
 import {
   Card,
@@ -44,6 +47,13 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Shield,
   ShieldAlert,
   Search,
@@ -66,6 +76,7 @@ export default function AdminDashboard() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const [users, setUsers] = useState<AdminProfile[]>([])
+  const [plans, setPlans] = useState<Plan[]>([])
   const [loadingUsers, setLoadingUsers] = useState(true)
   const [totalUsers, setTotalUsers] = useState(0)
 
@@ -81,6 +92,7 @@ export default function AdminDashboard() {
   const [editingUser, setEditingUser] = useState<AdminProfile | null>(null)
   const [editName, setEditName] = useState('')
   const [editIsAdmin, setEditIsAdmin] = useState(false)
+  const [editPlanId, setEditPlanId] = useState('')
   const [savingUser, setSavingUser] = useState(false)
 
   const fetchUsers = useCallback(async () => {
@@ -103,9 +115,19 @@ export default function AdminDashboard() {
     setLoadingUsers(false)
   }, [page, sortBy, sortOrder, search])
 
+  const fetchPlans = useCallback(async () => {
+    const { data, error } = await getAllPlans()
+    if (error) {
+      console.error('Error fetching plans:', error)
+    } else {
+      setPlans(data || [])
+    }
+  }, [])
+
   useEffect(() => {
     fetchUsers()
-  }, [fetchUsers])
+    fetchPlans()
+  }, [fetchUsers, fetchPlans])
 
   const handleSort = (field: typeof sortBy) => {
     if (sortBy === field) {
@@ -131,6 +153,7 @@ export default function AdminDashboard() {
     setEditingUser(user)
     setEditName(user.full_name || '')
     setEditIsAdmin(user.is_admin)
+    setEditPlanId(user.plan_id || '')
   }
 
   const handleSaveUser = async () => {
@@ -150,9 +173,21 @@ export default function AdminDashboard() {
         hasChanges = true
       }
 
+      if (editingUser.plan_id !== editPlanId && editPlanId) {
+        const { error } = await updateUserPlan(editingUser.id, editPlanId)
+        if (error) {
+          toast.error('Erro ao atualizar plano.')
+          console.error(error)
+        } else {
+          hasChanges = true
+        }
+      }
+
       if (hasChanges) {
         toast.success('Usuário atualizado com sucesso!')
         fetchUsers()
+      } else {
+        toast.info('Nenhuma alteração realizada.')
       }
       setEditingUser(null)
     } catch (error) {
@@ -294,6 +329,7 @@ export default function AdminDashboard() {
                                 <ArrowUpDown className="ml-2 h-4 w-4" />
                               </Button>
                             </TableHead>
+                            <TableHead>Plano</TableHead>
                             <TableHead className="text-center">Role</TableHead>
                             <TableHead className="text-center">
                               Status
@@ -305,7 +341,7 @@ export default function AdminDashboard() {
                           {users.length === 0 ? (
                             <TableRow>
                               <TableCell
-                                colSpan={6}
+                                colSpan={7}
                                 className="h-24 text-center"
                               >
                                 Nenhum usuário encontrado.
@@ -326,6 +362,9 @@ export default function AdminDashboard() {
                                         { locale: ptBR },
                                       )
                                     : '-'}
+                                </TableCell>
+                                <TableCell>
+                                  {u.plans?.name || 'Desconhecido'}
                                 </TableCell>
                                 <TableCell className="text-center">
                                   {u.is_admin ? (
@@ -461,7 +500,7 @@ export default function AdminDashboard() {
           <DialogHeader>
             <DialogTitle>Editar Usuário</DialogTitle>
             <DialogDescription>
-              Atualize as informações e permissões do usuário.
+              Atualize as informações, plano e permissões do usuário.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -473,6 +512,23 @@ export default function AdminDashboard() {
                 onChange={(e) => setEditName(e.target.value)}
               />
             </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="plan">Plano de Assinatura</Label>
+              <Select value={editPlanId} onValueChange={setEditPlanId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um plano" />
+                </SelectTrigger>
+                <SelectContent>
+                  {plans.map((plan) => (
+                    <SelectItem key={plan.id} value={plan.id}>
+                      {plan.name} ({plan.duration_days || 30} dias)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex items-center justify-between space-x-2 border p-3 rounded-md">
               <div className="space-y-1">
                 <Label htmlFor="is-admin">Acesso Administrativo</Label>
