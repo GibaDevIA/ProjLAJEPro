@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import {
   getSubscription,
+  getPlans,
   createCheckoutSession,
   createPortalSession,
   Subscription as SubscriptionType,
@@ -35,8 +36,10 @@ export default function Subscription() {
   const [subscription, setSubscription] = useState<
     (SubscriptionType & { plans: Plan }) | null
   >(null)
+  const [plans, setPlans] = useState<Plan[]>([])
   const [processing, setProcessing] = useState(false)
 
+  // Fetch user subscription
   const fetchSubscription = useCallback(async () => {
     setLoading(true)
     if (user) {
@@ -50,6 +53,17 @@ export default function Subscription() {
     setLoading(false)
   }, [user])
 
+  // Fetch available plans
+  useEffect(() => {
+    const fetchPlans = async () => {
+      const { data, error } = await getPlans()
+      if (!error && data) {
+        setPlans(data)
+      }
+    }
+    fetchPlans()
+  }, [])
+
   useEffect(() => {
     if (user) {
       fetchSubscription()
@@ -59,9 +73,23 @@ export default function Subscription() {
   const handleUpgrade = async () => {
     setProcessing(true)
     try {
-      // Use a dummy Stripe Price ID for demonstration or fetch from config
-      const STRIPE_PRICE_ID = 'price_1234567890'
-      const { data, error } = await createCheckoutSession(STRIPE_PRICE_ID)
+      // Find the Professional plan dynamically
+      // We check for both 'Professional' (English) and 'Profissional' (Portuguese) to be safe
+      const professionalPlan = plans.find(
+        (p) => p.name === 'Professional' || p.name === 'Profissional',
+      )
+
+      if (!professionalPlan) {
+        throw new Error('Plano Profissional não encontrado.')
+      }
+
+      if (!professionalPlan.stripe_price_id) {
+        throw new Error('ID do preço Stripe não configurado para este plano.')
+      }
+
+      const { data, error } = await createCheckoutSession(
+        professionalPlan.stripe_price_id,
+      )
 
       if (error) throw error
       if (data?.url) {
@@ -270,7 +298,7 @@ export default function Subscription() {
           </Card>
         </div>
 
-        {/* Billing History Placeholder (would come from Stripe Portal usually, but we can list simplified if we stored invoices) */}
+        {/* Billing History Placeholder */}
         <div className="pt-8">
           <h3 className="text-lg font-semibold mb-4">Histórico de Cobrança</h3>
           <Card>
