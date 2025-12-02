@@ -4,7 +4,6 @@ import { generateSlabReportData } from '@/lib/geometry'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Card,
-  CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
@@ -20,14 +19,15 @@ export const MaterialsPanel = ({ className }: { className?: string }) => {
   const totals = useMemo(() => {
     let ceramic = 0
     let eps = 0
-    // We don't count concrete fillers in this total
+    let totalArea = 0
 
     reportData.forEach((item) => {
       if (item.materialType === 'ceramic') ceramic += item.fillerCount || 0
       if (item.materialType === 'eps') eps += item.fillerCount || 0
+      totalArea += item.area
     })
 
-    return { ceramic, eps }
+    return { ceramic, eps, totalArea }
   }, [reportData])
 
   return (
@@ -109,7 +109,7 @@ export const MaterialsPanel = ({ className }: { className?: string }) => {
         </div>
       </ScrollArea>
 
-      {(totals.ceramic > 0 || totals.eps > 0) && (
+      {(totals.ceramic > 0 || totals.eps > 0 || totals.totalArea > 0) && (
         <div className="border-t bg-card p-4 space-y-2 shadow-sm">
           <h4 className="font-semibold text-sm mb-2">Total do Projeto</h4>
           {totals.ceramic > 0 && (
@@ -128,6 +128,12 @@ export const MaterialsPanel = ({ className }: { className?: string }) => {
               <span className="font-bold text-primary">{totals.eps} un</span>
             </div>
           )}
+          <div className="flex justify-between text-sm items-center p-2 bg-muted/30 rounded border border-muted/50">
+            <span className="text-muted-foreground">Total Área Quadrada</span>
+            <span className="font-bold text-primary">
+              {totals.totalArea.toFixed(2)} m²
+            </span>
+          </div>
         </div>
       )}
     </Card>

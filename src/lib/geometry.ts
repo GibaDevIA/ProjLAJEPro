@@ -39,13 +39,11 @@ export function getClosestPointOnSegment(p: Point, v: Point, w: Point): Point {
   }
 }
 
-// Helper to get distance from point to line segment
 function distanceToSegment(p: Point, v: Point, w: Point): number {
   const closest = getClosestPointOnSegment(p, v, w)
   return distance(p, closest)
 }
 
-// Check if point is inside polygon using ray casting
 export function isPointInPolygon(p: Point, vertices: Point[]): boolean {
   let inside = false
   for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
@@ -66,9 +64,8 @@ export function isPointInShape(
   shape: Shape,
   view: ViewState,
 ): boolean {
-  // Convert shape points to screen for checking against screen cursor position
   const screenPoints = shape.points.map((p) => worldToScreen(p, view))
-  const tolerance = 5 // pixels
+  const tolerance = 5
 
   if (
     shape.type === 'line' ||
@@ -76,7 +73,6 @@ export function isPointInShape(
     shape.type === 'vigota' ||
     shape.type === 'rib'
   ) {
-    // Check distance to each segment
     for (let i = 0; i < screenPoints.length - 1; i++) {
       if (
         distanceToSegment(point, screenPoints[i], screenPoints[i + 1]) <=
@@ -87,11 +83,8 @@ export function isPointInShape(
     }
     return false
   } else {
-    // Polygon or Rectangle
-    // Check if inside
     if (isPointInPolygon(point, screenPoints)) return true
 
-    // Also check edges for better UX
     for (let i = 0; i < screenPoints.length; i++) {
       const j = (i + 1) % screenPoints.length
       if (
@@ -121,7 +114,6 @@ export function getSnapPoint(
   let closest: SnapResult | null = null
   let minDist = SNAP_THRESHOLD_PX
 
-  // 1. Snap to Vertices
   const vertices: { point: Point; shapeId: string }[] = []
   shapes.forEach((shape) => {
     if (excludeShapeIds.includes(shape.id)) return
@@ -135,8 +127,8 @@ export function getSnapPoint(
     if (dist < minDist) {
       minDist = dist
       closest = {
-        point: vertex.point, // The world coordinate of the snap target
-        targetPoint: screenVertex, // The screen coordinate for visual feedback
+        point: vertex.point,
+        targetPoint: screenVertex,
         distance: dist,
         type: 'vertex',
       }
@@ -145,7 +137,6 @@ export function getSnapPoint(
 
   if (closest) return closest
 
-  // 2. Snap to Midpoints
   shapes.forEach((shape) => {
     if (excludeShapeIds.includes(shape.id)) return
     if (['line', 'rectangle', 'polygon'].includes(shape.type)) {
@@ -175,7 +166,6 @@ export function getSnapPoint(
 
   if (closest) return closest
 
-  // 3. Snap to Edges (Nearest)
   shapes.forEach((shape) => {
     if (excludeShapeIds.includes(shape.id)) return
     if (['line', 'rectangle', 'polygon'].includes(shape.type)) {
@@ -211,7 +201,6 @@ export function getSnapPoint(
 
   if (closest) return closest
 
-  // 4. Snap to Grid
   if (snapToGrid) {
     const cursorWorld = screenToWorld(cursorScreenPos, view)
     const gridPointWorld = {
@@ -276,7 +265,6 @@ export function getOrthogonalPoint(start: Point, current: Point): Point {
   }
 }
 
-// Helper to determine if two lines are approximately parallel
 export function areLinesParallel(
   l1Start: Point,
   l1End: Point,
@@ -287,7 +275,6 @@ export function areLinesParallel(
   let angle1 = calculateAngle(l1Start, l1End)
   let angle2 = calculateAngle(l2Start, l2End)
 
-  // Normalize to 0-180
   if (angle1 < 0) angle1 += 180
   if (angle1 >= 180) angle1 -= 180
   if (angle2 < 0) angle2 += 180
@@ -304,7 +291,6 @@ export function findClosedCycle(
   const pointMap = new Map<string, Point>()
   const key = (p: Point) => `${p.x.toFixed(4)},${p.y.toFixed(4)}`
 
-  // Build Graph
   for (const line of lines) {
     if (line.type !== 'line' || line.points.length < 2) continue
     const p1 = line.points[0]
@@ -331,14 +317,12 @@ export function findClosedCycle(
     if (!neighbors) return null
 
     for (const edge of neighbors) {
-      // Don't go back through the same edge we just came from
       if (
         currentPath.length > 0 &&
         edge.id === currentPath[currentPath.length - 1].edgeId
       )
         continue
 
-      // If we found the start node and path is long enough (at least 2 edges before closing, so 3 edges total)
       if (edge.other === start && currentPath.length >= 2) {
         const cycleEdges = [...currentPath.map((p) => p.edgeId), edge.id]
         const cyclePoints = currentPath.map((p) => pointMap.get(p.node)!)
@@ -346,7 +330,6 @@ export function findClosedCycle(
         return { lineIds: cycleEdges, points: cyclePoints }
       }
 
-      // If not visited in this path (avoid loops within path)
       if (!currentPath.some((p) => p.node === edge.other)) {
         const result = dfs(edge.other, start, [
           ...currentPath,
@@ -358,7 +341,6 @@ export function findClosedCycle(
     return null
   }
 
-  // Iterate all nodes to find a cycle
   for (const [nodeKey, neighbors] of adj.entries()) {
     if (neighbors.length < 2) continue
     const result = dfs(nodeKey, nodeKey, [])
@@ -387,11 +369,6 @@ export function calculateBoundingBox(points: Point[]): {
   return { width: maxX - minX, height: maxY - minY }
 }
 
-// --- Beam Generation Helpers ---
-// ... (Same beam generation logic)
-
-// Helper to get intersections of a ray with a polygon
-// Returns sorted t values (distance from origin along dir)
 function getRayPolygonIntersections(
   points: Point[],
   origin: Point,
@@ -447,38 +424,30 @@ export function getSlabJoistCount(slab: Shape, joistArrow: Shape): number {
   return lines.length
 }
 
-// Generate beam lines inside a polygon
 export function generateBeamLines(
   polygonPoints: Point[],
   arrowStart: Point,
   arrowEnd: Point,
-  spacing: number, // in meters
-  initialExclusion: number = 0, // in meters
-  finalExclusion: number = 0, // in meters
+  spacing: number,
+  initialExclusion: number = 0,
+  finalExclusion: number = 0,
 ): Point[][] {
   if (spacing <= 0) return []
 
-  // Direction of the arrow
   const dx = arrowEnd.x - arrowStart.x
   const dy = arrowEnd.y - arrowStart.y
   const len = Math.sqrt(dx * dx + dy * dy)
   if (len === 0) return []
 
-  // Normalized arrow direction
   const ax = dx / len
   const ay = dy / len
 
-  // Beam direction (parallel to arrow)
   const bx = ax
   const by = ay
 
-  // Projection direction (perpendicular to arrow)
-  // Rotate 90 degrees: (-y, x)
   const px = -ay
   const py = ax
 
-  // We need to cover the polygon with lines parallel to (bx, by).
-  // To do this, we project the polygon onto the Perpendicular Direction (px, py).
   let minProj = Infinity
   let maxProj = -Infinity
 
@@ -488,7 +457,6 @@ export function generateBeamLines(
     if (proj > maxProj) maxProj = proj
   }
 
-  // Generate lines starting from adjusted start to adjusted end with spacing
   const lines: Point[][] = []
 
   const effectiveStart = minProj + initialExclusion
@@ -504,7 +472,6 @@ export function generateBeamLines(
 
     const intersections = getRayPolygonIntersections(polygonPoints, origin, dir)
 
-    // Create segments from pairs of intersections
     for (let i = 0; i < intersections.length; i += 2) {
       if (i + 1 < intersections.length) {
         const t1 = intersections[i]
@@ -529,8 +496,6 @@ export function calculateVigotaLengths(
   const initialExclusion = (config.initialExclusion || 0) / 100
   const finalExclusion = (config.finalExclusion || 0) / 100
 
-  // Get the center lines of the joists
-  // This corresponds exactly to the visual representation (dashed lines)
   const centerLines = generateBeamLines(
     slab.points,
     joistArrow.points[0],
@@ -540,7 +505,6 @@ export function calculateVigotaLengths(
     finalExclusion,
   )
 
-  // Calculate length of each line segment directly
   return centerLines.map((line) => {
     const p1 = line[0]
     const p2 = line[1]
@@ -568,7 +532,6 @@ function clipPolygon(
 
     if (bIn) {
       if (!aIn) {
-        // Entering: add intersection
         if (Math.abs(valB - valA) > 1e-9) {
           const t = (limit - valA) / (valB - valA)
           output.push({ x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) })
@@ -579,7 +542,6 @@ function clipPolygon(
       output.push(b)
     } else {
       if (aIn) {
-        // Exiting: add intersection
         if (Math.abs(valB - valA) > 1e-9) {
           const t = (limit - valA) / (valB - valA)
           output.push({ x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) })
@@ -637,8 +599,6 @@ export function calculateNetSlabArea(slab: Shape, joistArrow: Shape): number {
   return calculatePolygonArea(clipped)
 }
 
-// --- Filler (Lajota/EPS) Calculation Helpers ---
-
 function getRibPolygon(rib: Shape): Point[] {
   if (
     rib.type !== 'rib' ||
@@ -650,7 +610,7 @@ function getRibPolygon(rib: Shape): Point[] {
 
   const p1 = rib.points[0]
   const p2 = rib.points[1]
-  const width = rib.properties.ribConfig.width // meters
+  const width = rib.properties.ribConfig.width
 
   const dx = p2.x - p1.x
   const dy = p2.y - p1.y
@@ -658,13 +618,11 @@ function getRibPolygon(rib: Shape): Point[] {
 
   if (len === 0) return []
 
-  // Normal vector
   const nx = -dy / len
   const ny = dx / len
 
   const halfWidth = width / 2
 
-  // 4 corners of the rib rectangle
   return [
     { x: p1.x + nx * halfWidth, y: p1.y + ny * halfWidth },
     { x: p2.x + nx * halfWidth, y: p2.y + ny * halfWidth },
@@ -680,7 +638,6 @@ function getSegmentPolygonIntersectionLength(
 ): number {
   if (polygon.length < 3) return 0
 
-  // Parametric clipping
   let t0 = 0
   let t1 = 1
   const dx = p2.x - p1.x
@@ -694,25 +651,23 @@ function getSegmentPolygonIntersectionLength(
     const edgeDx = edgeP2.x - edgeP1.x
     const edgeDy = edgeP2.y - edgeP1.y
 
-    // Inward normal if CCW: (-edgeDy, edgeDx)
-    const nx = -edgeDy
-    const ny = edgeDx
+    // Outward normal if CCW: (edgeDy, -edgeDx)
+    const nx = edgeDy
+    const ny = -edgeDx
 
-    // Denominator: N . D
     const denom = nx * dx + ny * dy
-    // Numerator: N . (edgeP1 - p1)
     const num = nx * (edgeP1.x - p1.x) + ny * (edgeP1.y - p1.y)
 
     if (Math.abs(denom) < 1e-9) {
       // Parallel
       if (num < 0) {
-        // Outside
+        // Outside (if num < 0) for outward normals
         return 0
       }
     } else {
       const t = num / denom
       if (denom > 0) {
-        // Exiting
+        // Exiting (Normal and Ray in same direction -> Exiting for outward)
         t1 = Math.min(t1, t)
       } else {
         // Entering
@@ -734,19 +689,17 @@ function calculateFillerCount(
   if (!slab.properties?.slabConfig) return { count: 0, type: '-' }
   const config = slab.properties.slabConfig
 
-  // Material Check: Only Ceramic or EPS
   if (config.material === 'concrete') {
     return { count: 0, type: '-' }
   }
 
-  const unitLength = config.unitLength / 100 // cm to meters
+  const unitLength = config.unitLength / 100
   if (unitLength <= 0) return { count: 0, type: '-' }
 
   const interEixoMeters = (config.interEixo || 42) / 100
   const initialExclusion = (config.initialExclusion || 0) / 100
   const finalExclusion = (config.finalExclusion || 0) / 100
 
-  // Generate joist lines to use as filler strips
   const strips = generateBeamLines(
     slab.points,
     joistArrow.points[0],
@@ -765,8 +718,6 @@ function calculateFillerCount(
     ribs.forEach((rib) => {
       const poly = getRibPolygon(rib)
 
-      // Ensure CCW for intersection logic if needed, though our logic is robust for entering/exiting if ordered.
-      // getRibPolygon generates CCW or CW. Let's check signed area.
       let signedArea = 0
       for (let i = 0; i < poly.length; i++) {
         const j = (i + 1) % poly.length
@@ -780,8 +731,6 @@ function calculateFillerCount(
 
     const effectiveLen = Math.max(0, stripLen - intersectionLen)
 
-    // Calculate count per strip (row)
-    // This ensures we calculate Transversal Qty (rows) * Longitudinal Qty (pieces per row)
     if (effectiveLen > 0) {
       totalCount += Math.ceil(effectiveLen / unitLength)
     }
@@ -822,7 +771,6 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
       height = bbox.height
     }
 
-    // Find associated joist arrow
     const joistArrow = shapes.find(
       (s) =>
         s.type === 'arrow' &&
@@ -836,7 +784,6 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
         ),
     )
 
-    // Calculate area
     let area = slab.properties?.area || calculatePolygonArea(slab.points)
     if (joistArrow) {
       area = calculateNetSlabArea(slab, joistArrow)
@@ -853,11 +800,9 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
     let reinforcementSummary = ''
     let reinforcementLines: string[] = []
 
-    // New Filler Calculation
     let fillerCount = 0
     let fillerType = '-'
 
-    // Find ribs inside this slab for reporting and calculation
     const slabRibs = ribs.filter((r) => {
       const mid = {
         x: (r.points[0].x + r.points[1].x) / 2,
@@ -869,7 +814,6 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
     if (joistArrow && config) {
       generatedLengths = calculateVigotaLengths(slab, joistArrow)
 
-      // Calculate Reinforcement if configured
       if (config.reinforcement && config.reinforcement.length > 0) {
         const steelTotals: Record<string, number> = {}
 
@@ -890,17 +834,14 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
           .map(([k, v]) => `${v.toFixed(2)}m ${k}`)
           .join(', ')
 
-        // Get broken down lines
         reinforcementLines = getSlabReinforcementSummary(slab, joistArrow)
       }
 
-      // Calculate Fillers
       const fillerResult = calculateFillerCount(slab, joistArrow, slabRibs)
       fillerCount = fillerResult.count
       fillerType = fillerResult.type
     }
 
-    // Find manual vigotas inside this slab
     const slabManualVigotas = manualVigotas.filter((v) => {
       const mid = {
         x: (v.points[0].x + v.points[1].x) / 2,
@@ -951,7 +892,6 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
         .join(', ')
     }
 
-    // --- Ribs Calculation ---
     const ribsData: RibReportData[] = []
     const ribGroups = new Map<string, RibReportData>()
 
@@ -960,7 +900,6 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
       const conf = rib.properties.ribConfig
       const length = calculateLineLength(rib.points[0], rib.points[1])
 
-      // Key based on config so we group identical ribs types
       const key = `${conf.ribType}-${conf.steelDiameter}-${conf.steelQuantity}-${conf.piecesPerMeter}`
 
       if (!ribGroups.has(key)) {
@@ -979,7 +918,6 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
       group.count++
       group.totalLength += length
 
-      // Material Calc
       const channels = length * conf.piecesPerMeter
       group.channelCount += channels
 
@@ -1011,8 +949,6 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
     }
   })
 }
-
-// --- Reinforcement Text Helpers ---
 
 export function formatJoistReinforcementText(
   quantity: number,
