@@ -93,13 +93,25 @@ export default function Subscription() {
     )
   }
 
-  const planName = subscription?.plans?.name || 'Plano Gratuito'
+  const plan = subscription?.plans
+  const planName = plan?.name || 'Plano Gratuito'
+  const planPrice = plan?.price ?? 0
+
+  // Determine status
   const isTrial = subscription?.status === 'trialing'
-  const isPro =
-    subscription?.plans?.name === 'Profissional' &&
-    subscription?.status === 'active'
-  const limit = subscription?.plans?.max_panos_per_project
+  const isActive = subscription?.status === 'active'
+
+  // Determine if user has an active paid plan (e.g. "Profissional")
+  // This is used to hide the "Upgrade" button.
+  // We consider a plan "Paid" if price > 0 and status is active.
+  const hasActivePaidPlan = isActive && planPrice > 0
+
+  const limit = plan?.max_panos_per_project
   const limitDisplay = limit ? `${limit} panos` : 'Ilimitado'
+  const maxProjects = (plan as any)?.max_projects
+  const projectLimitDisplay = maxProjects
+    ? `${maxProjects} projetos`
+    : 'Ilimitado'
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -129,12 +141,10 @@ export default function Subscription() {
               <div className="flex justify-between items-start">
                 <div>
                   <CardTitle className="text-xl">{planName}</CardTitle>
-                  <CardDescription>
-                    {subscription?.plans?.description}
-                  </CardDescription>
+                  <CardDescription>{plan?.description}</CardDescription>
                 </div>
                 <Badge
-                  variant={isPro ? 'default' : 'secondary'}
+                  variant={hasActivePaidPlan ? 'default' : 'secondary'}
                   className="text-sm"
                 >
                   {subscription?.status === 'active'
@@ -158,13 +168,23 @@ export default function Subscription() {
                   <p className="font-medium">{limitDisplay}</p>
                 </div>
                 <div className="space-y-1">
+                  <span className="text-muted-foreground">
+                    Limite de Projetos
+                  </span>
+                  <p className="font-medium">{projectLimitDisplay}</p>
+                </div>
+                <div className="space-y-1">
                   <span className="text-muted-foreground">Valor</span>
                   <p className="font-medium">
-                    {subscription?.plans?.price
-                      ? `R$ ${subscription.plans.price}/mês`
-                      : 'Gratuito'}
+                    {planPrice > 0 ? `R$ ${planPrice}/mês` : 'Gratuito'}
                   </p>
                 </div>
+                {plan?.duration_days && (
+                  <div className="space-y-1">
+                    <span className="text-muted-foreground">Ciclo</span>
+                    <p className="font-medium">{plan.duration_days} dias</p>
+                  </div>
+                )}
               </div>
 
               {isTrial && subscription?.trial_end && (
@@ -199,7 +219,7 @@ export default function Subscription() {
               )}
             </CardContent>
             <CardFooter className="flex flex-col sm:flex-row gap-3 justify-end items-center">
-              {!isPro && (
+              {!hasActivePaidPlan && (
                 <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
                   <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                     <Phone className="h-4 w-4" />
@@ -214,7 +234,13 @@ export default function Subscription() {
                   </Button>
                 </div>
               )}
-              {(isPro || subscription?.stripe_subscription_id) && (
+
+              {/* 
+                Only show "Manage Subscription" if there is a Stripe Subscription ID.
+                Manual (Administrative) plans typically don't have a Stripe ID, 
+                so the portal would fail or show empty.
+              */}
+              {subscription?.stripe_subscription_id && (
                 <Button
                   variant="outline"
                   onClick={handleManageBilling}
@@ -234,55 +260,75 @@ export default function Subscription() {
           {/* Benefits / Promo Card */}
           <Card className="bg-gradient-to-br from-slate-900 to-slate-800 text-white border-none">
             <CardHeader>
-              <CardTitle className="text-lg">Plano Profissional</CardTitle>
+              <CardTitle className="text-lg">
+                {hasActivePaidPlan ? planName : 'Plano Profissional'}
+              </CardTitle>
               <CardDescription className="text-slate-300">
-                Desbloqueie todo o potencial
+                {hasActivePaidPlan
+                  ? 'Seus benefícios ativos'
+                  : 'Desbloqueie todo o potencial'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <ul className="text-sm space-y-2">
                 <li className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-400" />
-                  Projetos Ilimitados
+                  {projectLimitDisplay === 'Ilimitado'
+                    ? 'Projetos Ilimitados'
+                    : `Até ${maxProjects} Projetos`}
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-400" />
-                  Exportação PDF e JPG
+                  {limitDisplay === 'Ilimitado'
+                    ? 'Panos Ilimitados'
+                    : `Até ${limit} panos/projeto`}
                 </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-400" />
-                  Cálculo de Materiais Avançado
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-400" />
-                  Suporte Prioritário
-                </li>
+                {hasActivePaidPlan && (
+                  <>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-400" />
+                      Exportação PDF e JPG
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-400" />
+                      Cálculo de Materiais Avançado
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-400" />
+                      Suporte Prioritário
+                    </li>
+                  </>
+                )}
               </ul>
             </CardContent>
           </Card>
         </div>
 
-        {/* Billing History Placeholder */}
-        <div className="pt-8">
-          <h3 className="text-lg font-semibold mb-4">Histórico de Cobrança</h3>
-          <Card>
-            <CardContent className="p-0">
-              <div className="text-center py-8 text-muted-foreground text-sm">
-                Para ver faturas detalhadas e recibos, acesse o portal de
-                gerenciamento.
-              </div>
-            </CardContent>
-            <CardFooter className="bg-muted/20 p-4 justify-center">
-              <Button
-                variant="link"
-                disabled={true}
-                className="text-muted-foreground opacity-50"
-              >
-                Acessar Portal Financeiro
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
+        {/* Billing History - Only relevant for Stripe users */}
+        {subscription?.stripe_subscription_id && (
+          <div className="pt-8">
+            <h3 className="text-lg font-semibold mb-4">
+              Histórico de Cobrança
+            </h3>
+            <Card>
+              <CardContent className="p-0">
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  Para ver faturas detalhadas e recibos, acesse o portal de
+                  gerenciamento.
+                </div>
+              </CardContent>
+              <CardFooter className="bg-muted/20 p-4 justify-center">
+                <Button
+                  variant="link"
+                  disabled={true}
+                  className="text-muted-foreground opacity-50"
+                >
+                  Acessar Portal Financeiro
+                </Button>
+              </CardFooter>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   )

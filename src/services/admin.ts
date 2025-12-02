@@ -86,37 +86,6 @@ export const getExpiringSubscriptions = async (days: number = 30) => {
   const today = new Date().toISOString()
   const futureDate = addDays(new Date(), days).toISOString()
 
-  const { data, error } = await supabase
-    .from('subscriptions')
-    .select(
-      `
-      id,
-      user_id,
-      current_period_end,
-      status,
-      profiles (
-        full_name,
-        email
-      ),
-      plans (
-        name
-      )
-    `,
-    )
-    .eq('status', 'active')
-    .eq('plans.name', 'Profissional') // Filter by plan name, might need to handle if Supabase doesn't support nested filter easily this way, but usually works if RLS allows
-    .gte('current_period_end', today)
-    .lte('current_period_end', futureDate)
-    .order('current_period_end', { ascending: true })
-
-  // Supabase postgrest doesn't always support deep filtering on joined tables nicely in one go without !inner,
-  // so we might fetch more and filter in client if plan filtering fails, but let's try to be specific.
-  // Better approach:
-  // .not('current_period_end', 'is', null) is implied by gte/lte
-
-  // NOTE: 'plans.name' filtering in select string requires !inner to enforce the join filter
-  // select('..., plans!inner(name)')
-
   const { data: strictData, error: strictError } = await supabase
     .from('subscriptions')
     .select(
