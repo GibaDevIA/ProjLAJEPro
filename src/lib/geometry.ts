@@ -955,7 +955,8 @@ export function formatJoistReinforcementText(
   diameter: string,
   totalLength: number,
 ): string {
-  return `${quantity} fio de ${diameter}mm c/${totalLength.toFixed(2).replace('.', ',')}m`
+  const suffix = quantity > 1 ? 'fios' : 'fio'
+  return `${quantity} ${suffix} de ${diameter}mm c/${totalLength.toFixed(2).replace('.', ',')}m`
 }
 
 export function formatSlabSummaryText(
@@ -963,7 +964,8 @@ export function formatSlabSummaryText(
   diameter: string,
   totalLength: number,
 ): string {
-  return `${quantity} fios de ${diameter}mm c/${totalLength.toFixed(2).replace('.', ',')}m`
+  const suffix = quantity > 1 ? 'barras' : 'barra'
+  return `${quantity} ${suffix} de ${diameter}mm c/${totalLength.toFixed(2).replace('.', ',')}m`
 }
 
 export function getJoistReinforcementDetails(

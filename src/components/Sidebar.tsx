@@ -26,8 +26,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { generateSlabReportData, worldToScreen } from '@/lib/geometry'
-import { Shape, ViewState } from '@/types/drawing'
-import { updateProject, ProjectContent } from '@/services/projects'
+import { ProjectContent, updateProject } from '@/services/projects'
 
 export const Sidebar: React.FC = () => {
   const {
@@ -139,7 +138,7 @@ export const Sidebar: React.FC = () => {
     const svg = document.querySelector('#canvas-container svg') as SVGSVGElement
     if (!svg) return
 
-    // 1. Prepare Drawing (Page 1)
+    // 1. Prepare Drawing (Page 1) - Landscape
     const clone = svg.cloneNode(true) as SVGSVGElement
 
     // Calculate Bounding Box of all shapes to Auto-Fit
@@ -188,133 +187,117 @@ export const Sidebar: React.FC = () => {
     const reportData = generateSlabReportData(shapes)
     const today = new Date().toLocaleDateString('pt-BR')
 
-    // 3. Generate HTML for Slabs
-    const slabsHtml = reportData
+    // 3. Generate HTML for Table Rows
+    const rowsHtml = reportData
       .map((slab) => {
         const areaStr = slab.area.toFixed(2).replace('.', ',')
 
-        // Vigotas Section
+        // Column 1: Basic Info
+        const basicInfoHtml = `
+          <div style="font-weight: bold; font-size: 12px; margin-bottom: 4px; color: #0f172a;">${slab.label}</div>
+          <div style="font-size: 10px; color: #334155;">
+            <div><strong>Área Total:</strong> ${areaStr} m²</div>
+            <div><strong>Tipo:</strong> ${slab.type}</div>
+            <div><strong>Material:</strong> ${slab.material}</div>
+          </div>
+        `
+
+        // Column 2: Vigotas
         let vigotasHtml = ''
         if (slab.vigotaCount > 0) {
-          const listHtml = slab.vigotaDetails
+          const detailsHtml = slab.vigotaDetails
             .map((d) => {
               const lenStr = d.length.replace('.', ',')
               const reinfHtml = d.reinforcementText
-                .map(
-                  (rt) => `
-              <div style="font-size: 10px; color: #666; margin-left: 10px;">• ${rt}</div>
-            `,
-                )
+                .map((rt) => `<div style="color: #64748b;">• ${rt}</div>`)
                 .join('')
 
               return `
               <div style="margin-bottom: 4px;">
                 <strong>${d.count}x</strong> Vigotas de <strong>${lenStr}m</strong>
-                ${reinfHtml}
+                <div style="font-size: 9px; margin-left: 6px;">${reinfHtml}</div>
               </div>
             `
             })
             .join('')
 
           vigotasHtml = `
-            <div class="section-block">
-              <div class="section-title">--- Vigotas ---</div>
-              ${listHtml}
-              <div style="margin-top: 6px; font-weight: bold; font-size: 11px;">
-                Total de Vigotas: ${slab.vigotaCount} unidades
-              </div>
+            ${detailsHtml}
+            <div style="margin-top: 6px; font-weight: bold; font-size: 10px; border-top: 1px dashed #cbd5e1; padding-top: 2px;">
+              Total: ${slab.vigotaCount} unidades
             </div>
           `
+        } else {
+          vigotasHtml =
+            '<div style="color: #94a3b8; font-style: italic;">-</div>'
         }
 
-        // Nervuras Section
-        let nervurasHtml = ''
+        // Column 3: Complements (Nervuras, Aço, Enchimento)
+        let complementsHtml = ''
+
+        // Nervuras
         if (slab.ribsData && slab.ribsData.length > 0) {
-          const listHtml = slab.ribsData
+          const ribsList = slab.ribsData
             .map((rib) => {
               const typeName =
                 rib.channelType === 'plastic' ? 'Plástica' : 'Cerâmica'
-              const totalLen = rib.totalLength.toFixed(2).replace('.', ',')
               const steelLen = rib.steelTotalLength.toFixed(2).replace('.', ',')
-
               return `
-              <div style="margin-bottom: 6px;">
-                <div><strong>${rib.count}x</strong> Nervuras (${typeName})</div>
-                <ul style="margin: 2px 0 0 15px; padding: 0; list-style-type: disc; font-size: 10px; color: #444;">
-                   <li>Total: ${totalLen}m</li>
-                   <li>Canaletas: ${Math.ceil(rib.channelCount)} unidades</li>
-                   <li>Aço (${rib.steelDiameter}mm): ${steelLen}m</li>
-                </ul>
+              <div style="margin-bottom: 4px;">
+                <strong>${rib.count}x</strong> Nervuras (${typeName})
+                <div style="font-size: 9px; margin-left: 6px; color: #64748b;">
+                   • Comp. Total: ${rib.totalLength.toFixed(2).replace('.', ',')}m<br/>
+                   • Canaletas: ${Math.ceil(rib.channelCount)} un<br/>
+                   • Aço (${rib.steelDiameter}mm): ${steelLen}m
+                </div>
               </div>
             `
             })
             .join('')
-
-          nervurasHtml = `
-            <div class="section-block">
-              <div class="section-title">--- Nervuras Transversais ---</div>
-              ${listHtml}
-            </div>
-          `
+          complementsHtml += `<div style="margin-bottom: 8px;"><strong>Nervuras Transversais:</strong>${ribsList}</div>`
         }
 
-        // Aço Adicional Section
-        let acoHtml = ''
+        // Aço Adicional
         if (slab.reinforcementLines && slab.reinforcementLines.length > 0) {
-          const listHtml = slab.reinforcementLines
-            .map(
-              (line) => `
-             <div>• ${line}</div>
-           `,
-            )
+          const acoList = slab.reinforcementLines
+            .map((line) => `<div style="color: #64748b;">• ${line}</div>`)
             .join('')
-
-          acoHtml = `
-            <div class="section-block">
-              <div class="section-title">--- Aço Adicional ---</div>
-              <div style="font-size: 11px;">
-                ${listHtml}
-              </div>
-            </div>
-           `
+          complementsHtml += `<div style="margin-bottom: 8px;"><strong>Aço Adicional:</strong><div style="font-size: 9px; margin-left: 6px;">${acoList}</div></div>`
         }
 
-        // Enchimento Section
-        let enchimentoHtml = ''
+        // Enchimento
         if (
           slab.materialType !== 'concrete' &&
           slab.fillerCount &&
           slab.fillerCount > 0
         ) {
-          enchimentoHtml = `
-            <div class="section-block">
-              <div class="section-title">--- Enchimento ---</div>
-              <div style="font-size: 11px;">
-                ${slab.material}: <strong>${slab.fillerCount} unidades</strong> (${slab.fillerType})
+          complementsHtml += `
+            <div>
+              <strong>Enchimento:</strong>
+              <div style="font-size: 9px; margin-left: 6px; color: #64748b;">
+                • ${slab.material}: ${slab.fillerCount} unidades <br/> (${slab.fillerType})
               </div>
             </div>
           `
         }
 
+        if (!complementsHtml) {
+          complementsHtml =
+            '<div style="color: #94a3b8; font-style: italic;">-</div>'
+        }
+
         return `
-          <div class="slab-container">
-             <div class="slab-header">--- Cômodo: ${slab.label} ---</div>
-             <div class="slab-stats">
-               <span><strong>Área Total:</strong> ${areaStr} m²</span>
-               <span><strong>Tipo:</strong> ${slab.type}</span>
-               <span><strong>Material:</strong> ${slab.material}</span>
-             </div>
-             
-             <div class="slab-content">
-                ${vigotasHtml}
-                ${nervurasHtml}
-                ${acoHtml}
-                ${enchimentoHtml}
-             </div>
-          </div>
+          <tr>
+            <td style="background-color: #f8fafc;">${basicInfoHtml}</td>
+            <td>${vigotasHtml}</td>
+            <td>${complementsHtml}</td>
+          </tr>
         `
       })
       .join('')
+
+    const noDataHtml =
+      '<tr><td colspan="3" style="text-align: center; padding: 20px; color: #64748b;">Nenhum cômodo encontrado neste projeto.</td></tr>'
 
     // 4. Open Print Window
     const printWindow = window.open('', '_blank')
@@ -327,30 +310,34 @@ export const Sidebar: React.FC = () => {
             <style>
               @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
               
-              @page { size: A4; margin: 15mm; }
+              @page { size: A4 landscape; margin: 10mm; }
               body { margin: 0; font-family: 'Inter', sans-serif; color: #1e293b; background: white; }
               
               .print-page {
                 width: 100%;
-                min-height: 95vh;
-                position: relative;
+                height: 100vh; /* Full viewport height for page 1 */
                 display: flex;
                 flex-direction: column;
+                page-break-after: always;
+                box-sizing: border-box;
               }
               
-              .page-break {
-                page-break-before: always;
+              .report-page {
+                width: 100%;
+                min-height: 100vh;
+                box-sizing: border-box;
+                padding-top: 10mm;
               }
 
               .header {
                 text-align: center;
-                margin-bottom: 20px;
+                margin-bottom: 10px;
                 border-bottom: 2px solid #0f172a;
                 padding-bottom: 10px;
               }
               
               .header h1 {
-                font-size: 24px;
+                font-size: 20px;
                 font-weight: 800;
                 margin: 0;
                 text-transform: uppercase;
@@ -358,9 +345,9 @@ export const Sidebar: React.FC = () => {
               }
               
               .header p {
-                font-size: 12px;
+                font-size: 11px;
                 color: #64748b;
-                margin: 5px 0 0 0;
+                margin: 4px 0 0 0;
               }
 
               /* Page 1 - Visualization */
@@ -374,64 +361,33 @@ export const Sidebar: React.FC = () => {
                 border: 1px solid #e2e8f0;
                 border-radius: 8px;
                 padding: 10px;
+                margin-bottom: 10px;
               }
 
-              /* Page 2+ - Report */
-              .report-grid {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 20px;
-                align-items: start;
+              /* Page 2+ - Report Table */
+              table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 10px;
               }
               
-              @media print {
-                 .report-grid { display: block; } /* Fallback for cleaner print sometimes */
-                 .slab-container { break-inside: avoid; margin-bottom: 20px; }
-              }
-
-              .slab-container {
+              th, td {
                 border: 1px solid #cbd5e1;
-                border-radius: 6px;
-                padding: 15px;
-                margin-bottom: 20px;
-                background-color: #f8fafc;
-              }
-
-              .slab-header {
-                font-size: 14px;
-                font-weight: 700;
-                text-align: center;
-                margin-bottom: 10px;
-                color: #0f172a;
-                text-transform: uppercase;
-                border-bottom: 1px dashed #cbd5e1;
-                padding-bottom: 5px;
-              }
-
-              .slab-stats {
-                display: flex;
-                justify-content: space-between;
-                font-size: 11px;
-                margin-bottom: 15px;
-                background: white;
                 padding: 8px;
-                border-radius: 4px;
-                border: 1px solid #e2e8f0;
+                vertical-align: top;
               }
-
-              .section-block {
-                margin-bottom: 12px;
-                font-size: 11px;
-              }
-
-              .section-title {
-                font-size: 11px;
+              
+              th {
+                background-color: #e2e8f0;
+                text-align: left;
                 font-weight: 700;
                 color: #334155;
-                margin-bottom: 4px;
-                text-decoration: underline;
-                text-decoration-color: #cbd5e1;
+                text-transform: uppercase;
+                font-size: 9px;
               }
+
+              /* Prevent page break inside rows if possible */
+              tr { page-break-inside: avoid; }
             </style>
           </head>
           <body>
@@ -446,23 +402,31 @@ export const Sidebar: React.FC = () => {
               </div>
             </div>
 
-            <!-- Page 2+: Report -->
-            <div class="page-break">
+            <!-- Page 2+: Report Table -->
+            <div class="report-page">
                <div class="header">
                 <h1>Relatório de Materiais</h1>
                 <p>Detalhamento por Cômodo</p>
               </div>
               
-              <div class="report-content">
-                ${slabsHtml || '<p style="text-align:center; color: #666;">Nenhum cômodo encontrado neste projeto.</p>'}
-              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Cômodo / Dados Básicos</th>
+                    <th style="width: 40%;">Vigotas e Armação</th>
+                    <th style="width: 40%;">Complementos (Nervuras, Aço Adicional, Enchimento)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rowsHtml || noDataHtml}
+                </tbody>
+              </table>
             </div>
 
             <script>
               window.onload = () => {
                 setTimeout(() => {
                   window.print();
-                  // window.close(); // Optional: close after print
                 }, 800);
               }
             </script>
