@@ -691,9 +691,6 @@ function getSegmentPolygonIntersectionLength(
     const edgeP1 = polygon[i]
     const edgeP2 = polygon[j]
 
-    // Edge normal (pointing inward for standard check, but depends on winding)
-    // Let's use the "left side" check. Assuming polygon is CCW?
-    // We can compute normal directly: (-dy, dx)
     const edgeDx = edgeP2.x - edgeP1.x
     const edgeDy = edgeP2.y - edgeP1.y
 
@@ -709,8 +706,7 @@ function getSegmentPolygonIntersectionLength(
     if (Math.abs(denom) < 1e-9) {
       // Parallel
       if (num < 0) {
-        // Outside (if normal is inward and num < 0, it means p1 is "behind" edge)
-        // Standard clipping: num < 0 means outside
+        // Outside
         return 0
       }
     } else {
@@ -726,11 +722,6 @@ function getSegmentPolygonIntersectionLength(
 
     if (t0 > t1) return 0
   }
-
-  // Because winding order might be CW or CCW, the "outside" check might be flipped
-  // A safer approach for general convex polygon without winding assumption:
-  // Just use standard line-clipping libraries or simpler segment-segment intersection summing?
-  // Since ribs are rectangles, let's stick to valid winding. getRibPolygon generates consistent winding.
 
   return (t1 - t0) * Math.sqrt(dx * dx + dy * dy)
 }
@@ -751,10 +742,6 @@ function calculateFillerCount(
   const unitLength = config.unitLength / 100 // cm to meters
   if (unitLength <= 0) return { count: 0, type: '-' }
 
-  // We assume the fillers run in rows parallel to joists.
-  // We approximate the "rows of fillers" by using the joist lines themselves as the sampling strip.
-  // This aligns with "Transversal Qty (rows) * Longitudinal Qty".
-
   const interEixoMeters = (config.interEixo || 42) / 100
   const initialExclusion = (config.initialExclusion || 0) / 100
   const finalExclusion = (config.finalExclusion || 0) / 100
@@ -769,7 +756,7 @@ function calculateFillerCount(
     finalExclusion,
   )
 
-  let totalNetLength = 0
+  let totalCount = 0
 
   strips.forEach((strip) => {
     const stripLen = calculateLineLength(strip[0], strip[1])
@@ -777,53 +764,9 @@ function calculateFillerCount(
 
     ribs.forEach((rib) => {
       const poly = getRibPolygon(rib)
-      // Note: This intersection check assumes standard winding.
-      // If getRibPolygon winding is inconsistent with clip logic, result might be 0.
-      // Given we control both, it should be fine.
-      // However, a simpler robust check for Rect vs Line:
-      // Intersect the line segment with the 4 edges of the rect, find entry/exit points along the line.
-      // But the parametric clipper is efficient.
 
-      // To ensure robustness against winding, we can try both windings or use a winding-independent check (separating axis).
-      // But let's assume the clipper works.
-      // Actually, getRibPolygon generates points in a loop.
-      // p1 -> p2 -> p2' -> p1'. This is likely a loop.
-      // Let's just use the logic we have.
-
-      // Alternative: Since rib is a "thick line", intersection length of "Line A" with "Thick Line B"
-      // is approx WidthB / sin(angle).
-      // Let's use that geometric approximation for robustness if simple enough.
-      // Angle between strip and rib:
-      const angle = Math.abs(
-        calculateAngle(strip[0], strip[1]) -
-          calculateAngle(rib.points[0], rib.points[1]),
-      )
-      // diff angle
-      let diff = angle % 180
-      if (diff > 90) diff = 180 - diff
-      // diff is now 0..90
-      const rad = (diff * Math.PI) / 180
-      const sinAngle = Math.sin(rad)
-
-      if (sinAngle > 0.1) {
-        // avoid division by zero or huge length for parallel
-        const width = rib.properties?.ribConfig?.width || 0
-        const intersection = width / sinAngle
-
-        // Check if they actually intersect physically (infinite lines intersect, segments might not)
-        // We need segment-segment intersection check between the centerlines first?
-        // Or check if intersection point is within segments.
-        // This is getting complex.
-        // Let's stick to polygon intersection.
-        // But ensure polygon is valid.
-      }
-
-      // Let's trust getSegmentPolygonIntersectionLength for now.
-      // But we need to ensure polygon orientation.
-      // To be safe, let's calculate area. If negative, reverse.
-      const area = calculatePolygonArea(poly)
-      // calculatePolygonArea returns absolute.
-      // We can check signed area.
+      // Ensure CCW for intersection logic if needed, though our logic is robust for entering/exiting if ordered.
+      // getRibPolygon generates CCW or CW. Let's check signed area.
       let signedArea = 0
       for (let i = 0; i < poly.length; i++) {
         const j = (i + 1) % poly.length
@@ -836,13 +779,17 @@ function calculateFillerCount(
     })
 
     const effectiveLen = Math.max(0, stripLen - intersectionLen)
-    totalNetLength += effectiveLen
+
+    // Calculate count per strip (row)
+    // This ensures we calculate Transversal Qty (rows) * Longitudinal Qty (pieces per row)
+    if (effectiveLen > 0) {
+      totalCount += Math.ceil(effectiveLen / unitLength)
+    }
   })
 
-  const count = Math.ceil(totalNetLength / unitLength)
   const typeLabel = `Lajota ${config.type} (${config.unitWidth}x${config.unitLength})`
 
-  return { count, type: typeLabel }
+  return { count: totalCount, type: typeLabel }
 }
 
 export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
@@ -856,12 +803,13 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
     const label = slab.properties?.label || `Laje ${index + 1}`
     const config = slab.properties?.slabConfig
     const type = config?.type || '-'
+    const materialKey = config?.material || 'concrete'
     const material =
-      config?.material === 'ceramic'
+      materialKey === 'ceramic'
         ? 'Cerâmica'
-        : config?.material === 'eps'
+        : materialKey === 'eps'
           ? 'EPS'
-          : config?.material === 'concrete'
+          : materialKey === 'concrete'
             ? 'Concreto Maciço'
             : '-'
 
@@ -1049,6 +997,7 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
       height,
       type,
       material,
+      materialType: materialKey,
       vigotaCount,
       vigotaSummary,
       vigotaDetails,

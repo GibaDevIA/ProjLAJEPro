@@ -102,6 +102,7 @@ export interface SlabReportItem {
   height: number
   type: string
   material: string
+  materialType: 'ceramic' | 'eps' | 'concrete' | string
   vigotaCount: number
   vigotaSummary: string
   vigotaDetails: {
