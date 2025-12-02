@@ -4,6 +4,7 @@ import {
   SnapResult,
   Shape,
   SlabReportItem,
+  SlabConfig,
 } from '@/types/drawing'
 
 export const SNAP_THRESHOLD_PX = 10
@@ -767,4 +768,82 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
       reinforcementSummary,
     }
   })
+}
+
+// --- Reinforcement Text Helpers ---
+
+export function formatJoistReinforcementText(
+  quantity: number,
+  diameter: string,
+  totalLength: number,
+): string {
+  // "X fio de Ymm c/Z,ZZm"
+  return `${quantity} fio de ${diameter}mm c/${totalLength.toFixed(2).replace('.', ',')}m`
+}
+
+export function formatSlabSummaryText(
+  quantity: number,
+  diameter: string,
+  totalLength: number,
+): string {
+  // "X fios de Ymm c/Z,ZZm"
+  return `${quantity} fios de ${diameter}mm c/${totalLength.toFixed(2).replace('.', ',')}m`
+}
+
+export function getJoistReinforcementDetails(
+  joistLength: number,
+  config?: SlabConfig,
+): string[] {
+  if (!config || !config.reinforcement || config.reinforcement.length === 0)
+    return []
+
+  return config.reinforcement.map((r) => {
+    const totalLen = joistLength + (r.anchorage || 0) / 100
+    return formatJoistReinforcementText(r.quantity, r.diameter, totalLen)
+  })
+}
+
+export function getSlabReinforcementSummary(
+  slab: Shape,
+  joistArrow: Shape,
+): string[] {
+  const lengths = calculateVigotaLengths(slab, joistArrow)
+  const config = slab.properties?.slabConfig
+
+  if (!config || !config.reinforcement || config.reinforcement.length === 0)
+    return []
+
+  // Key: "diameter-totalLength" -> Data
+  const summaryMap = new Map<
+    string,
+    { quantity: number; diameter: string; length: number }
+  >()
+
+  lengths.forEach((len) => {
+    config.reinforcement!.forEach((r) => {
+      const totalLen = len + (r.anchorage || 0) / 100
+      // Use 2 decimal places for key to group correctly
+      const lenKey = totalLen.toFixed(2)
+      const key = `${r.diameter}-${lenKey}`
+
+      if (!summaryMap.has(key)) {
+        summaryMap.set(key, {
+          quantity: 0,
+          diameter: r.diameter,
+          length: parseFloat(lenKey),
+        })
+      }
+
+      const entry = summaryMap.get(key)!
+      entry.quantity += r.quantity
+    })
+  })
+
+  const entries = Array.from(summaryMap.values()).sort(
+    (a, b) => b.length - a.length,
+  )
+
+  return entries.map((e) =>
+    formatSlabSummaryText(e.quantity, e.diameter, e.length),
+  )
 }

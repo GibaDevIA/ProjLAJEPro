@@ -7,6 +7,8 @@ import {
   calculateLineLength,
   generateBeamLines,
   getSlabJoistCount,
+  getJoistReinforcementDetails,
+  getSlabReinforcementSummary,
 } from '@/lib/geometry'
 import { formatDimension } from '@/lib/utils'
 
@@ -251,6 +253,14 @@ const SlabRenderer: React.FC<ShapeRendererProps> = ({
     return calculatePolygonArea(shape.points)
   }, [shape, joistArrow])
 
+  // Get Slab Summary
+  const slabSummary = useMemo(() => {
+    if (joistArrow && shape.properties?.slabConfig) {
+      return getSlabReinforcementSummary(shape, joistArrow)
+    }
+    return []
+  }, [shape, joistArrow])
+
   const pathData = `M ${screenPoints.map((p) => `${p.x},${p.y}`).join(' L ')} Z`
 
   const centroid = screenPoints.reduce(
@@ -307,6 +317,16 @@ const SlabRenderer: React.FC<ShapeRendererProps> = ({
     )
   }
 
+  // Slab Label Properties
+  const labelText = `${shape.properties?.label || `Laje`} (${area.toFixed(2)} m²)`
+  const joistCountText = joistCount > 0 ? `(${joistCount}vt)` : ''
+
+  // Calculate label box height
+  // Base height for Label + Count: 20px
+  // Each summary line: ~10px
+  const labelBoxHeight = 20 + Math.max(0, slabSummary.length * 12)
+  const labelBoxY = -10 - (slabSummary.length * 12) / 2 // Center vertically
+
   return (
     <g className="group">
       <path
@@ -319,22 +339,57 @@ const SlabRenderer: React.FC<ShapeRendererProps> = ({
         className="transition-colors duration-150"
       />
 
-      {/* Render Beams */}
+      {/* Render Beams and their details */}
       {beamLines.map((line, i) => {
         const p1 = worldToScreen(line[0], view)
         const p2 = worldToScreen(line[1], view)
+        const worldLength = calculateLineLength(line[0], line[1])
+
+        // Generate individual joist reinforcement details
+        const reinfDetails = getJoistReinforcementDetails(
+          worldLength,
+          shape.properties?.slabConfig,
+        )
+
+        // Calculate angle for text rotation
+        const angleRad = Math.atan2(p2.y - p1.y, p2.x - p1.x)
+        let angleDeg = (angleRad * 180) / Math.PI
+        if (angleDeg > 90) angleDeg -= 180
+        if (angleDeg < -90) angleDeg += 180
+
+        const midX = (p1.x + p2.x) / 2
+        const midY = (p1.y + p2.y) / 2
+
         return (
-          <line
-            key={`beam-${i}`}
-            x1={p1.x}
-            y1={p1.y}
-            x2={p2.x}
-            y2={p2.y}
-            stroke="#6b7280"
-            strokeWidth={1}
-            strokeOpacity={0.6}
-            strokeDasharray="4 4"
-          />
+          <g key={`beam-${i}`}>
+            <line
+              x1={p1.x}
+              y1={p1.y}
+              x2={p2.x}
+              y2={p2.y}
+              stroke="#6b7280"
+              strokeWidth={1}
+              strokeOpacity={0.6}
+              strokeDasharray="4 4"
+            />
+            {reinfDetails.map((text, idx) => (
+              <g
+                key={`reinf-${idx}`}
+                transform={`translate(${midX}, ${midY}) rotate(${angleDeg})`}
+              >
+                <text
+                  x="0"
+                  y={12 + idx * 10} // Position below the line
+                  textAnchor="middle"
+                  className="text-[8px] font-normal select-none pointer-events-none"
+                  fill="#374151"
+                  style={{ fontSize: '8px', fontFamily: 'Inter' }}
+                >
+                  {text}
+                </text>
+              </g>
+            ))}
+          </g>
         )
       })}
 
@@ -348,27 +403,43 @@ const SlabRenderer: React.FC<ShapeRendererProps> = ({
         />
       ))}
 
+      {/* Slab Label & Summary */}
       <g transform={`translate(${centroid.x}, ${centroid.y})`}>
         <rect
-          x="-40"
-          y="-10"
-          width="80"
-          height="20"
+          x="-50"
+          y={labelBoxY}
+          width="100"
+          height={labelBoxHeight}
           rx="2"
           fill="white"
-          fillOpacity="0.8"
+          fillOpacity="0.85"
+          stroke="#e5e7eb"
+          strokeWidth="1"
         />
         <text
           x="0"
-          y="4"
+          y={labelBoxY + 14}
           textAnchor="middle"
           className="text-[10px] font-bold pointer-events-none select-none"
           fill="#1f2937"
           style={{ fontSize: '10px', fontFamily: 'Inter' }}
         >
-          {shape.properties?.label || `Laje`} ({area.toFixed(2)} m²)
-          {joistCount > 0 ? ` (${joistCount}vt)` : ''}
+          {labelText} {joistCountText}
         </text>
+        {/* Summary Lines */}
+        {slabSummary.map((line, idx) => (
+          <text
+            key={`sum-${idx}`}
+            x="0"
+            y={labelBoxY + 26 + idx * 12}
+            textAnchor="middle"
+            className="text-[9px] font-medium pointer-events-none select-none"
+            fill="#4b5563"
+            style={{ fontSize: '9px', fontFamily: 'Inter' }}
+          >
+            {line}
+          </text>
+        ))}
       </g>
       {dimensions}
     </g>
