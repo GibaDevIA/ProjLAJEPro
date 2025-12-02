@@ -117,7 +117,6 @@ export default function AdminDashboard() {
 
   const fetchPlans = useCallback(async () => {
     const { data, error } = await getAllPlans()
-    console.log('fetchPlans received:', data)
     if (error) {
       console.error('Error fetching plans:', error)
     } else {

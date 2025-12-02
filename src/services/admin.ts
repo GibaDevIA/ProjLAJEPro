@@ -65,8 +65,6 @@ export const getAllPlans = async () => {
     .select('id, name, duration_days')
     .order('price', { ascending: true })
 
-  console.log('getAllPlans result:', { data, error })
-
   return { data: data as Plan[] | null, error }
 }
 
