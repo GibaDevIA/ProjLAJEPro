@@ -19,6 +19,8 @@ import {
   Trash2,
   CreditCard,
   AlertTriangle,
+  Lock,
+  Eye,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getProjects, createProject, deleteProject } from '@/services/projects'
@@ -26,10 +28,11 @@ import { Project } from '@/services/projects'
 import {
   getSubscription,
   checkMaxProjectsLimit,
+  isSubscriptionActive,
   Subscription,
   Plan,
 } from '@/services/subscription'
-import { format, differenceInDays } from 'date-fns'
+import { format, differenceInDays, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
   Dialog,
@@ -52,6 +55,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
+import { cn } from '@/lib/utils'
 
 const Dashboard = () => {
   const { user, signOut } = useAuth()
@@ -64,6 +68,7 @@ const Dashboard = () => {
     (Subscription & { plans: Plan }) | null
   >(null)
   const [daysRemaining, setDaysRemaining] = useState<number | null>(null)
+  const [isExpired, setIsExpired] = useState(false)
 
   // Create Project State
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
@@ -92,12 +97,12 @@ const Dashboard = () => {
       console.error('Error fetching subscription:', error)
     } else if (data) {
       setSubscription(data)
-      if (
-        data.status === 'trialing' &&
-        data.trial_end &&
-        data.plans.name === 'Free Trial'
-      ) {
-        const end = new Date(data.trial_end)
+
+      const { isActive } = isSubscriptionActive(data)
+      setIsExpired(!isActive)
+
+      if (data.status === 'trialing' && data.trial_end) {
+        const end = parseISO(data.trial_end)
         const now = new Date()
         const diff = differenceInDays(end, now)
         setDaysRemaining(diff)
@@ -128,6 +133,11 @@ const Dashboard = () => {
   const openCreateDialog = async () => {
     if (!user) return
 
+    if (isExpired) {
+      toast.error('Sua assinatura expirou. Renove para criar novos projetos.')
+      return
+    }
+
     // Check Limits
     const limitCheck = await checkMaxProjectsLimit(user.id)
     if (limitCheck.error) {
@@ -136,10 +146,14 @@ const Dashboard = () => {
     }
 
     if (limitCheck.allowed === false) {
+      if (limitCheck.reason === 'expired') {
+        toast.error('Sua assinatura expirou.')
+        setIsExpired(true)
+        return
+      }
       toast.error(
         `Você atingiu o limite de ${limitCheck.limit} projetos do seu plano atual.`,
       )
-      // Optional: Suggest upgrade
       return
     }
 
@@ -208,16 +222,44 @@ const Dashboard = () => {
           </p>
         </div>
 
-        {/* Free Trial Notification */}
-        {subscription &&
-          subscription.status === 'trialing' &&
-          daysRemaining !== null && (
-            <div className="max-w-5xl mx-auto mb-8">
+        {/* Status Notifications */}
+        <div className="max-w-5xl mx-auto mb-8 space-y-4">
+          {/* Expired Notification */}
+          {isExpired && (
+            <Alert
+              variant="destructive"
+              className="bg-red-50 border-red-200 text-red-800"
+            >
+              <Lock className="h-4 w-4" />
+              <AlertTitle>Assinatura Expirada</AlertTitle>
+              <AlertDescription className="flex justify-between items-center flex-wrap gap-2">
+                <span>
+                  Sua assinatura ou período de avaliação expirou. Você pode
+                  visualizar seus projetos, mas não pode criar novos ou editar
+                  os existentes.
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="bg-white whitespace-nowrap hover:bg-red-50 border-red-200"
+                  asChild
+                >
+                  <Link to="/pricing">Renovar Agora</Link>
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Free Trial Notification */}
+          {!isExpired &&
+            subscription &&
+            subscription.status === 'trialing' &&
+            daysRemaining !== null && (
               <Alert
                 variant={daysRemaining <= 3 ? 'destructive' : 'default'}
                 className={
                   daysRemaining <= 3
-                    ? 'bg-red-50 border-red-200 text-red-800'
+                    ? 'bg-orange-50 border-orange-200 text-orange-800'
                     : 'bg-blue-50 border-blue-200 text-blue-800'
                 }
               >
@@ -239,26 +281,44 @@ const Dashboard = () => {
                   </Button>
                 </AlertDescription>
               </Alert>
-            </div>
-          )}
+            )}
+        </div>
 
         <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-12">
           {/* New Project Card */}
           <Card
-            className="hover:shadow-lg transition-all duration-300 border-primary/20 cursor-pointer group bg-blue-50/50"
-            onClick={openCreateDialog}
+            className={cn(
+              'transition-all duration-300 border-primary/20 group',
+              isExpired
+                ? 'bg-gray-100 cursor-not-allowed opacity-80'
+                : 'hover:shadow-lg cursor-pointer bg-blue-50/50',
+            )}
+            onClick={isExpired ? undefined : openCreateDialog}
           >
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
-                <Plus className="h-6 w-6 text-primary" />
+              <CardTitle
+                className={cn(
+                  'flex items-center gap-2 transition-colors',
+                  isExpired ? 'text-gray-500' : 'group-hover:text-primary',
+                )}
+              >
+                {isExpired ? (
+                  <Lock className="h-6 w-6" />
+                ) : (
+                  <Plus className="h-6 w-6 text-primary" />
+                )}
                 Novo Projeto
               </CardTitle>
               <CardDescription>
-                Inicie um novo projeto de laje do zero.
+                {isExpired
+                  ? 'Assinatura expirada.'
+                  : 'Inicie um novo projeto de laje do zero.'}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="w-full">Começar</Button>
+              <Button className="w-full" disabled={isExpired}>
+                {isExpired ? 'Bloqueado' : 'Começar'}
+              </Button>
             </CardContent>
           </Card>
 
@@ -323,9 +383,13 @@ const Dashboard = () => {
                   Nenhum projeto encontrado
                 </h3>
                 <p className="text-muted-foreground mb-4">
-                  Crie seu primeiro projeto para começar a desenhar.
+                  {isExpired
+                    ? 'Você não possui projetos criados.'
+                    : 'Crie seu primeiro projeto para começar a desenhar.'}
                 </p>
-                <Button onClick={openCreateDialog}>Criar Novo Projeto</Button>
+                {!isExpired && (
+                  <Button onClick={openCreateDialog}>Criar Novo Projeto</Button>
+                )}
               </CardContent>
             </Card>
           ) : (
@@ -363,12 +427,21 @@ const Dashboard = () => {
                     <Button
                       asChild
                       className="flex-1"
-                      variant="default"
+                      variant={isExpired ? 'secondary' : 'default'}
                       size="sm"
                     >
                       <Link to={`/project/${project.id}`}>
-                        <FileEdit className="mr-2 h-4 w-4" />
-                        Abrir
+                        {isExpired ? (
+                          <>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Visualizar
+                          </>
+                        ) : (
+                          <>
+                            <FileEdit className="mr-2 h-4 w-4" />
+                            Abrir
+                          </>
+                        )}
                       </Link>
                     </Button>
                     <Button
@@ -376,6 +449,12 @@ const Dashboard = () => {
                       size="icon"
                       className="h-9 w-9"
                       onClick={() => setProjectToDelete(project.id)}
+                      disabled={isExpired}
+                      title={
+                        isExpired
+                          ? 'Não é possível excluir projetos expirados'
+                          : 'Excluir projeto'
+                      }
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

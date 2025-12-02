@@ -1,5 +1,10 @@
 import { supabase } from '@/lib/supabase/client'
 import { Shape, ViewState } from '@/types/drawing'
+import {
+  checkMaxProjectsLimit,
+  isSubscriptionActive,
+  getSubscription,
+} from './subscription'
 
 export interface ProjectContent {
   shapes: Shape[]
@@ -44,6 +49,16 @@ export const createProject = async (name: string, content?: ProjectContent) => {
 
   if (!user) return { data: null, error: new Error('User not authenticated') }
 
+  // Enforce Subscription Limit
+  const check = await checkMaxProjectsLimit(user.id)
+  if (!check.allowed) {
+    const msg =
+      check.reason === 'expired'
+        ? 'Sua assinatura expirou. Renove para criar novos projetos.'
+        : `Limite de projetos atingido (${check.limit}).`
+    return { data: null, error: new Error(msg) }
+  }
+
   const { data, error } = await supabase
     .from('projects')
     .insert({
@@ -62,6 +77,23 @@ export const updateProject = async (
   id: string,
   updates: Partial<Pick<Project, 'name' | 'content'>>,
 ) => {
+  // Get user to check subscription
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (user) {
+    const { data: sub } = await getSubscription(user.id)
+    const { isActive } = isSubscriptionActive(sub)
+
+    if (!isActive) {
+      return {
+        data: null,
+        error: new Error('Assinatura expirada. Modo somente leitura.'),
+      }
+    }
+  }
+
   const { data, error } = await supabase
     .from('projects')
     .update({ ...updates, updated_at: new Date().toISOString() })

@@ -15,6 +15,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      notification_logs: {
+        Row: {
+          created_at: string | null
+          id: string
+          notification_type: string
+          reference_date: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          notification_type: string
+          reference_date?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          notification_type?: string
+          reference_date?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'notification_logs_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       plans: {
         Row: {
           created_at: string | null
