@@ -103,162 +103,12 @@ export const Sidebar: React.FC = () => {
     setIsSaving(false)
   }
 
-  const generateReportSVG = (
-    currentShapes: Shape[],
-    currentView: ViewState,
-    svgWidth: number,
-    svgHeight: number,
-  ) => {
-    const reportData = generateSlabReportData(currentShapes)
-    if (reportData.length === 0) return ''
-
-    const totalArea = reportData.reduce((acc, item) => acc + item.area, 0)
-
-    // Grid Layout Configuration
-    const columns = Math.min(reportData.length, 3)
-    const cellWidth = 220
-    const cellPadding = 10
-    const cellGap = 10
-    const headerHeight = 30
-    const footerHeight = 30
-    const titleHeight = 30
-
-    const getRowHeight = (startIndex: number, count: number) => {
-      let maxH = 100 // Base height
-      for (let i = 0; i < count; i++) {
-        if (startIndex + i < reportData.length) {
-          const item = reportData[startIndex + i]
-          const summaryLines = Math.ceil((item.vigotaSummary.length || 1) / 30)
-          let itemH = 80 + summaryLines * 15
-          if (item.hasExtraVigotas) itemH += 15 // Extra space for note
-          if (itemH > maxH) maxH = itemH
-        }
-      }
-      return maxH
-    }
-
-    const rows = Math.ceil(reportData.length / 3)
-    let totalContentHeight = titleHeight + footerHeight + (rows - 1) * cellGap
-
-    const rowHeights: number[] = []
-    for (let r = 0; r < rows; r++) {
-      const h = getRowHeight(r * 3, 3)
-      rowHeights.push(h)
-      totalContentHeight += h
-    }
-
-    // Total Table Size
-    const tableWidth =
-      columns * cellWidth + (columns > 0 ? (columns - 1) * cellGap : 0)
-    const tableHeight = totalContentHeight + 20 // + padding
-
-    // Position Bottom Right
-    const x = svgWidth - tableWidth - 20
-    const y = svgHeight - tableHeight - 20
-
-    let svgContent = `
-                <g transform="translate(${x}, ${y})">
-                  <!-- Background -->
-                  <rect width="${tableWidth}" height="${tableHeight}" fill="white" stroke="#e2e8f0" rx="4" filter="drop-shadow(0 4px 6px rgb(0 0 0 / 0.1))" />
-                  
-                  <!-- Title -->
-                  <text x="${10}" y="${20}" font-family="Inter, sans-serif" font-size="14" font-weight="bold" fill="#0f172a">Descritivo dos Materiais</text>
-                  <line x1="0" y1="${titleHeight}" x2="${tableWidth}" y2="${titleHeight}" stroke="#e2e8f0" />
-              `
-
-    let currentY = titleHeight + 10
-
-    for (let r = 0; r < rows; r++) {
-      const rowH = rowHeights[r]
-      for (let c = 0; c < 3; c++) {
-        const index = r * 3 + c
-        if (index >= reportData.length) break
-
-        const item = reportData[index]
-        const cellX = c * (cellWidth + cellGap)
-
-        // Cell Group
-        svgContent += `<g transform="translate(${cellX}, ${currentY})">`
-
-        // Item Label & Area
-        svgContent += `
-                    <rect x="0" y="0" width="${cellWidth}" height="${rowH}" fill="#f8fafc" rx="4" stroke="#f1f5f9" />
-                    <text x="${10}" y="${20}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#334155">${item.label}</text>
-                    <text x="${cellWidth - 10}" y="${20}" text-anchor="end" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#334155">${item.area.toFixed(2)}m²</text>
-                    <line x1="5" y1="28" x2="${cellWidth - 5}" y2="28" stroke="#e2e8f0" />
-                  `
-
-        // Details
-        let detailY = 45
-        svgContent += `
-                    <text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="11" fill="#475569">Tipo: ${item.type} | ${item.material}</text>
-                  `
-        detailY += 15
-
-        if (item.vigotaCount > 0) {
-          svgContent += `
-                      <text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="11" font-weight="bold" fill="#475569">Vigotas (${item.vigotaCount}):</text>
-                    `
-          detailY += 15
-
-          // Wrap text logic for SVG is manual
-          const words = item.vigotaSummary.split(' ')
-          let line = ''
-          words.forEach((word) => {
-            if ((line + word).length > 32) {
-              svgContent += `<text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="10" fill="#64748b">${line}</text>`
-              line = word + ' '
-              detailY += 12
-            } else {
-              line += word + ' '
-            }
-          })
-          if (line) {
-            svgContent += `<text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="10" fill="#64748b">${line}</text>`
-            detailY += 12
-          }
-
-          if (item.hasExtraVigotas) {
-            svgContent += `<text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="10" fill="#d97706" font-style="italic">* ${item.extraVigotaCount} Vigotas extra adicionadas</text>`
-          }
-        } else {
-          svgContent += `
-                      <text x="${10}" y="${detailY}" font-family="Inter, sans-serif" font-size="10" fill="#d97706" font-style="italic">Sem vigotas definidas</text>
-                    `
-        }
-
-        svgContent += `</g>`
-      }
-      currentY += rowH + cellGap
-    }
-
-    // Footer (Total)
-    const footerY = tableHeight - footerHeight + 20
-    svgContent += `
-                  <line x1="0" y1="${tableHeight - footerHeight}" x2="${tableWidth}" y2="${tableHeight - footerHeight}" stroke="#e2e8f0" />
-                  <text x="${10}" y="${footerY}" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Total Geral</text>
-                  <text x="${tableWidth - 10}" y="${footerY}" text-anchor="end" font-family="Inter, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">${totalArea.toFixed(2)}m²</text>
-              `
-
-    svgContent += `</g>`
-    return svgContent
-  }
-
   const handleExportJPG = () => {
     const svg = document.querySelector('#canvas-container svg') as SVGSVGElement
     if (!svg) return
 
     const serializer = new XMLSerializer()
-    let source = serializer.serializeToString(svg)
-
-    // Inject Report
-    const reportSVG = generateReportSVG(
-      shapes,
-      view,
-      svg.clientWidth,
-      svg.clientHeight,
-    )
-    source = source.replace('</svg>', `${reportSVG}</svg>`)
+    const source = serializer.serializeToString(svg)
 
     const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' })
     const url = URL.createObjectURL(blob)
@@ -290,7 +140,6 @@ export const Sidebar: React.FC = () => {
     if (!svg) return
 
     // 1. Prepare Drawing (Page 1)
-    // Clone the SVG to manipulate it for printing without affecting the UI
     const clone = svg.cloneNode(true) as SVGSVGElement
 
     // Calculate Bounding Box of all shapes to Auto-Fit
@@ -300,188 +149,326 @@ export const Sidebar: React.FC = () => {
       let maxX = -Infinity
       let maxY = -Infinity
 
+      let hasShapes = false
       shapes.forEach((s) => {
-        s.points.forEach((p) => {
-          const screenP = worldToScreen(p, view)
-          if (screenP.x < minX) minX = screenP.x
-          if (screenP.y < minY) minY = screenP.y
-          if (screenP.x > maxX) maxX = screenP.x
-          if (screenP.y > maxY) maxY = screenP.y
-        })
+        if (s.points.length > 0) {
+          hasShapes = true
+          s.points.forEach((p) => {
+            const screenP = worldToScreen(p, view)
+            if (screenP.x < minX) minX = screenP.x
+            if (screenP.y < minY) minY = screenP.y
+            if (screenP.x > maxX) maxX = screenP.x
+            if (screenP.y > maxY) maxY = screenP.y
+          })
+        }
       })
 
-      // Add padding
-      const padding = 40
-      const width = maxX - minX + padding * 2
-      const height = maxY - minY + padding * 2
+      if (hasShapes) {
+        // Add padding
+        const padding = 50
+        const width = maxX - minX + padding * 2
+        const height = maxY - minY + padding * 2
 
-      // Set viewBox to the bounding box of the content
-      clone.setAttribute(
-        'viewBox',
-        `${minX - padding} ${minY - padding} ${width} ${height}`,
-      )
-      clone.style.width = '100%'
-      clone.style.height = '100%'
-      clone.removeAttribute('width')
-      clone.removeAttribute('height')
+        // Set viewBox to the bounding box of the content
+        clone.setAttribute(
+          'viewBox',
+          `${minX - padding} ${minY - padding} ${width} ${height}`,
+        )
+        clone.style.width = '100%'
+        clone.style.height = '100%'
+        clone.removeAttribute('width')
+        clone.removeAttribute('height')
+      }
     }
 
     const serializer = new XMLSerializer()
     const svgString = serializer.serializeToString(clone)
 
-    // 2. Prepare Report (Page 2)
+    // 2. Prepare Report Data
     const reportData = generateSlabReportData(shapes)
-    const totalArea = reportData.reduce((acc, item) => acc + item.area, 0)
+    const today = new Date().toLocaleDateString('pt-BR')
 
-    const reportRows = reportData
-      .map(
-        (item) => `
-              <tr>
-                <td>${item.label}</td>
-                <td>${item.area.toFixed(2)} m²</td>
-                <td>${item.type}</td>
-                <td>${item.material === 'ceramic' ? 'Cerâmica' : item.material === 'eps' ? 'EPS' : item.material}</td>
-                <td>${item.vigotaCount}</td>
-                <td>
-                  ${item.vigotaSummary || '-'}
-                  ${item.hasExtraVigotas ? `<br/><span style="color: #d97706; font-style: italic; font-size: 10px;">* ${item.extraVigotaCount} Vigotas extra adicionadas</span>` : ''}
-                </td>
-              </tr>
+    // 3. Generate HTML for Slabs
+    const slabsHtml = reportData
+      .map((slab) => {
+        const areaStr = slab.area.toFixed(2).replace('.', ',')
+
+        // Vigotas Section
+        let vigotasHtml = ''
+        if (slab.vigotaCount > 0) {
+          const listHtml = slab.vigotaDetails
+            .map((d) => {
+              const lenStr = d.length.replace('.', ',')
+              const reinfHtml = d.reinforcementText
+                .map(
+                  (rt) => `
+              <div style="font-size: 10px; color: #666; margin-left: 10px;">• ${rt}</div>
             `,
-      )
-      .join('')
+                )
+                .join('')
 
-    const reportHTML = `
-              <div class="print-page page-break">
-                <div class="header">Descritivo dos Materiais</div>
-                <div class="report-container">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Elemento</th>
-                        <th>Área</th>
-                        <th>Tipo</th>
-                        <th>Material</th>
-                        <th>Qtd. Vigotas</th>
-                        <th>Detalhe Vigotas</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      ${reportRows}
-                    </tbody>
-                    <tfoot>
-                      <tr>
-                        <td colspan="1" style="font-weight:bold">Total Geral</td>
-                        <td style="font-weight:bold">${totalArea.toFixed(2)} m²</td>
-                        <td colspan="4"></td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
+              return `
+              <div style="margin-bottom: 4px;">
+                <strong>${d.count}x</strong> Vigotas de <strong>${lenStr}m</strong>
+                ${reinfHtml}
               </div>
             `
+            })
+            .join('')
 
-    // 3. Open Print Window
+          vigotasHtml = `
+            <div class="section-block">
+              <div class="section-title">--- Vigotas ---</div>
+              ${listHtml}
+              <div style="margin-top: 6px; font-weight: bold; font-size: 11px;">
+                Total de Vigotas: ${slab.vigotaCount} unidades
+              </div>
+            </div>
+          `
+        }
+
+        // Nervuras Section
+        let nervurasHtml = ''
+        if (slab.ribsData && slab.ribsData.length > 0) {
+          const listHtml = slab.ribsData
+            .map((rib) => {
+              const typeName =
+                rib.channelType === 'plastic' ? 'Plástica' : 'Cerâmica'
+              const totalLen = rib.totalLength.toFixed(2).replace('.', ',')
+              const steelLen = rib.steelTotalLength.toFixed(2).replace('.', ',')
+
+              return `
+              <div style="margin-bottom: 6px;">
+                <div><strong>${rib.count}x</strong> Nervuras (${typeName})</div>
+                <ul style="margin: 2px 0 0 15px; padding: 0; list-style-type: disc; font-size: 10px; color: #444;">
+                   <li>Total: ${totalLen}m</li>
+                   <li>Canaletas: ${Math.ceil(rib.channelCount)} unidades</li>
+                   <li>Aço (${rib.steelDiameter}mm): ${steelLen}m</li>
+                </ul>
+              </div>
+            `
+            })
+            .join('')
+
+          nervurasHtml = `
+            <div class="section-block">
+              <div class="section-title">--- Nervuras Transversais ---</div>
+              ${listHtml}
+            </div>
+          `
+        }
+
+        // Aço Adicional Section
+        let acoHtml = ''
+        if (slab.reinforcementLines && slab.reinforcementLines.length > 0) {
+          const listHtml = slab.reinforcementLines
+            .map(
+              (line) => `
+             <div>• ${line}</div>
+           `,
+            )
+            .join('')
+
+          acoHtml = `
+            <div class="section-block">
+              <div class="section-title">--- Aço Adicional ---</div>
+              <div style="font-size: 11px;">
+                ${listHtml}
+              </div>
+            </div>
+           `
+        }
+
+        // Enchimento Section
+        let enchimentoHtml = ''
+        if (
+          slab.materialType !== 'concrete' &&
+          slab.fillerCount &&
+          slab.fillerCount > 0
+        ) {
+          enchimentoHtml = `
+            <div class="section-block">
+              <div class="section-title">--- Enchimento ---</div>
+              <div style="font-size: 11px;">
+                ${slab.material}: <strong>${slab.fillerCount} unidades</strong> (${slab.fillerType})
+              </div>
+            </div>
+          `
+        }
+
+        return `
+          <div class="slab-container">
+             <div class="slab-header">--- Cômodo: ${slab.label} ---</div>
+             <div class="slab-stats">
+               <span><strong>Área Total:</strong> ${areaStr} m²</span>
+               <span><strong>Tipo:</strong> ${slab.type}</span>
+               <span><strong>Material:</strong> ${slab.material}</span>
+             </div>
+             
+             <div class="slab-content">
+                ${vigotasHtml}
+                ${nervurasHtml}
+                ${acoHtml}
+                ${enchimentoHtml}
+             </div>
+          </div>
+        `
+      })
+      .join('')
+
+    // 4. Open Print Window
     const printWindow = window.open('', '_blank')
     if (printWindow) {
       printWindow.document.write(`
-                <html>
-                  <head>
-                    <title>Projeto - ProjLAJE</title>
-                    <style>
-                      @page { size: landscape; margin: 0; }
-                      body { margin: 0; font-family: 'Inter', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
-                      
-                      .print-page {
-                        width: 100vw;
-                        height: 100vh;
-                        position: relative;
-                        display: flex;
-                        flex-direction: column;
-                        padding: 20px;
-                        box-sizing: border-box;
-                      }
-                      
-                      .page-break {
-                        page-break-before: always;
-                      }
-        
-                      .header {
-                        text-align: center;
-                        font-size: 24px;
-                        font-weight: bold;
-                        margin-bottom: 10px;
-                        padding-bottom: 10px;
-                        border-bottom: 2px solid #0f172a;
-                        text-transform: uppercase;
-                        color: #0f172a;
-                      }
-        
-                      .drawing-container {
-                        flex: 1;
-                        width: 100%;
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        overflow: hidden;
-                        border: 1px solid #e2e8f0;
-                        border-radius: 8px;
-                      }
-        
-                      /* Report Table Styles */
-                      .report-container {
-                        width: 100%;
-                        margin-top: 20px;
-                      }
-                      table {
-                        width: 100%;
-                        border-collapse: collapse;
-                        font-size: 12px;
-                      }
-                      th, td {
-                        border: 1px solid #e2e8f0;
-                        padding: 8px 12px;
-                        text-align: left;
-                        color: #334155;
-                      }
-                      th {
-                        background-color: #f8fafc;
-                        font-weight: bold;
-                        color: #0f172a;
-                      }
-                      tr:nth-child(even) {
-                        background-color: #f8fafc;
-                      }
-                      tfoot td {
-                        background-color: #f1f5f9;
-                        border-top: 2px solid #cbd5e1;
-                        color: #0f172a;
-                      }
-                    </style>
-                  </head>
-                  <body>
-                    <!-- Page 1: Drawing -->
-                    <div class="print-page">
-                      <div class="header">Croqui de Montagem Laje</div>
-                      <div class="drawing-container">
-                        ${svgString}
-                      </div>
-                    </div>
-        
-                    <!-- Page 2: Report -->
-                    ${reportHTML}
-        
-                    <script>
-                      window.onload = () => {
-                        setTimeout(() => {
-                          window.print();
-                          window.onafterprint = () => window.close();
-                        }, 500);
-                      }
-                    </script>
-                  </body>
-                </html>
-              `)
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Relatório de Materiais - ${projectName || 'ProjLAJE'}</title>
+            <style>
+              @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+              
+              @page { size: A4; margin: 15mm; }
+              body { margin: 0; font-family: 'Inter', sans-serif; color: #1e293b; background: white; }
+              
+              .print-page {
+                width: 100%;
+                min-height: 95vh;
+                position: relative;
+                display: flex;
+                flex-direction: column;
+              }
+              
+              .page-break {
+                page-break-before: always;
+              }
+
+              .header {
+                text-align: center;
+                margin-bottom: 20px;
+                border-bottom: 2px solid #0f172a;
+                padding-bottom: 10px;
+              }
+              
+              .header h1 {
+                font-size: 24px;
+                font-weight: 800;
+                margin: 0;
+                text-transform: uppercase;
+                color: #0f172a;
+              }
+              
+              .header p {
+                font-size: 12px;
+                color: #64748b;
+                margin: 5px 0 0 0;
+              }
+
+              /* Page 1 - Visualization */
+              .drawing-container {
+                flex: 1;
+                width: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                overflow: hidden;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 10px;
+              }
+
+              /* Page 2+ - Report */
+              .report-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+                align-items: start;
+              }
+              
+              @media print {
+                 .report-grid { display: block; } /* Fallback for cleaner print sometimes */
+                 .slab-container { break-inside: avoid; margin-bottom: 20px; }
+              }
+
+              .slab-container {
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                padding: 15px;
+                margin-bottom: 20px;
+                background-color: #f8fafc;
+              }
+
+              .slab-header {
+                font-size: 14px;
+                font-weight: 700;
+                text-align: center;
+                margin-bottom: 10px;
+                color: #0f172a;
+                text-transform: uppercase;
+                border-bottom: 1px dashed #cbd5e1;
+                padding-bottom: 5px;
+              }
+
+              .slab-stats {
+                display: flex;
+                justify-content: space-between;
+                font-size: 11px;
+                margin-bottom: 15px;
+                background: white;
+                padding: 8px;
+                border-radius: 4px;
+                border: 1px solid #e2e8f0;
+              }
+
+              .section-block {
+                margin-bottom: 12px;
+                font-size: 11px;
+              }
+
+              .section-title {
+                font-size: 11px;
+                font-weight: 700;
+                color: #334155;
+                margin-bottom: 4px;
+                text-decoration: underline;
+                text-decoration-color: #cbd5e1;
+              }
+            </style>
+          </head>
+          <body>
+            <!-- Page 1: Drawing -->
+            <div class="print-page">
+              <div class="header">
+                <h1>Projeto: ${projectName || 'Sem Nome'}</h1>
+                <p>Croqui de Montagem - Gerado em ${today}</p>
+              </div>
+              <div class="drawing-container">
+                ${svgString}
+              </div>
+            </div>
+
+            <!-- Page 2+: Report -->
+            <div class="page-break">
+               <div class="header">
+                <h1>Relatório de Materiais</h1>
+                <p>Detalhamento por Cômodo</p>
+              </div>
+              
+              <div class="report-content">
+                ${slabsHtml || '<p style="text-align:center; color: #666;">Nenhum cômodo encontrado neste projeto.</p>'}
+              </div>
+            </div>
+
+            <script>
+              window.onload = () => {
+                setTimeout(() => {
+                  window.print();
+                  // window.close(); // Optional: close after print
+                }, 800);
+              }
+            </script>
+          </body>
+        </html>
+      `)
       printWindow.document.close()
     } else {
       toast.error('Permita popups para exportar PDF.')
@@ -817,7 +804,7 @@ export const Sidebar: React.FC = () => {
               onClick={handleExportPDF}
             >
               <FileText className="mr-2 h-4 w-4" />
-              Exportar PDF
+              Relatório PDF
             </Button>
             <Button
               variant="destructive"
