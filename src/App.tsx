@@ -11,6 +11,7 @@ import ResetPassword from './pages/ResetPassword'
 import Profile from './pages/Profile'
 import Dashboard from './pages/Dashboard'
 import AdminDashboard from './pages/AdminDashboard'
+import ExpiringPlans from './pages/admin/ExpiringPlans'
 import Subscription from './pages/Subscription'
 import Pricing from './pages/Pricing'
 import Success from './pages/Success'
@@ -42,6 +43,7 @@ const App = () => (
 
           <Route element={<AdminRoute />}>
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/expiring-plans" element={<ExpiringPlans />} />
           </Route>
 
           <Route element={<ProtectedRoute />}>

@@ -64,6 +64,7 @@ import {
   LayoutDashboard,
   LogOut,
   ArrowUpDown,
+  Clock,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Link, useNavigate } from 'react-router-dom'
@@ -232,6 +233,17 @@ export default function AdminDashboard() {
           Admin Dashboard
         </div>
         <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
+          >
+            <Link to="/admin/expiring-plans">
+              <Clock className="h-4 w-4" />
+              Planos Expirando
+            </Link>
+          </Button>
           <Button variant="ghost" asChild className="gap-2">
             <Link to="/dashboard">
               <LayoutDashboard className="h-4 w-4" />
