@@ -1,3 +1,5 @@
+import { Point as PointType } from '@/types/drawing' // Self reference hack to keep imports if needed, but here we define it.
+
 export type Point = {
   x: number
   y: number
@@ -11,6 +13,14 @@ export type ShapeType =
   | 'dimension'
   | 'vigota'
 
+export interface ReinforcementConfig {
+  id: string
+  quantity: number
+  steelType: 'CA50' | 'CA60'
+  diameter: string
+  anchorage: number // cm
+}
+
 export interface SlabConfig {
   type: 'H8' | 'H12' | 'H16' | 'H20' | 'H25' | 'H30'
   material: 'ceramic' | 'eps' | 'concrete'
@@ -18,9 +28,10 @@ export interface SlabConfig {
   unitWidth: number // cm
   unitLength: number // cm
   beamWidth: number // cm
-  interEixo: number // cm (calculated)
+  interEixo: number // cm
   initialExclusion?: number // cm
   finalExclusion?: number // cm
+  reinforcement?: ReinforcementConfig[]
 }
 
 export interface Shape {
@@ -75,4 +86,5 @@ export interface SlabReportItem {
   vigotaDetails: { length: string; count: number }[]
   hasExtraVigotas: boolean
   extraVigotaCount: number
+  reinforcementSummary?: string
 }

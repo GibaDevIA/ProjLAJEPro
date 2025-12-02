@@ -17,7 +17,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { SlabConfig } from '@/types/drawing'
+import { SlabConfig, ReinforcementConfig } from '@/types/drawing'
+import { generateId } from '@/lib/utils'
+import { Plus, Trash2 } from 'lucide-react'
 
 interface SlabConfigurationModalProps {
   open: boolean
@@ -25,6 +27,10 @@ interface SlabConfigurationModalProps {
   onConfirm: (config: SlabConfig) => void
   initialConfig?: SlabConfig
 }
+
+const STEEL_TYPES = ['CA50', 'CA60'] as const
+const DIAMETERS_CA50 = ['6.3', '8', '10', '12.5', '16']
+const DIAMETERS_CA60 = ['4.2', '5', '6', '7', '8', '9.5']
 
 export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
   open,
@@ -38,8 +44,10 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
   const [unitWidth, setUnitWidth] = useState('30')
   const [unitLength, setUnitLength] = useState('20')
   const [beamWidth, setBeamWidth] = useState('12')
+  const [interEixo, setInterEixo] = useState('42')
   const [initialExclusion, setInitialExclusion] = useState('0')
   const [finalExclusion, setFinalExclusion] = useState('0')
+  const [reinforcement, setReinforcement] = useState<ReinforcementConfig[]>([])
 
   useEffect(() => {
     if (open && initialConfig) {
@@ -49,8 +57,10 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
       setUnitWidth(initialConfig.unitWidth.toString())
       setUnitLength(initialConfig.unitLength.toString())
       setBeamWidth(initialConfig.beamWidth.toString())
+      setInterEixo(initialConfig.interEixo.toString())
       setInitialExclusion(initialConfig.initialExclusion?.toString() || '0')
       setFinalExclusion(initialConfig.finalExclusion?.toString() || '0')
+      setReinforcement(initialConfig.reinforcement || [])
     } else if (open) {
       // Defaults
       setType('H8')
@@ -59,15 +69,53 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
       setUnitWidth('30')
       setUnitLength('20')
       setBeamWidth('12')
+      setInterEixo('42')
       setInitialExclusion('0')
       setFinalExclusion('0')
+      setReinforcement([])
     }
   }, [open, initialConfig])
 
-  const calculateInterEixo = () => {
-    const w = parseFloat(unitWidth) || 0
-    const b = parseFloat(beamWidth) || 0
-    return w + b
+  const handleAddReinforcement = () => {
+    if (reinforcement.length >= 2) return
+    setReinforcement([
+      ...reinforcement,
+      {
+        id: generateId(),
+        quantity: 1,
+        steelType: 'CA50',
+        diameter: '8',
+        anchorage: 0,
+      },
+    ])
+  }
+
+  const handleRemoveReinforcement = (id: string) => {
+    setReinforcement(reinforcement.filter((r) => r.id !== id))
+  }
+
+  const updateReinforcement = (
+    id: string,
+    field: keyof ReinforcementConfig,
+    value: any,
+  ) => {
+    setReinforcement(
+      reinforcement.map((r) => {
+        if (r.id === id) {
+          const updated = { ...r, [field]: value }
+          // Reset diameter if type changes and current diameter is not valid
+          if (field === 'steelType') {
+            const validDiameters =
+              value === 'CA50' ? DIAMETERS_CA50 : DIAMETERS_CA60
+            if (!validDiameters.includes(updated.diameter)) {
+              updated.diameter = validDiameters[0]
+            }
+          }
+          return updated
+        }
+        return r
+      }),
+    )
   }
 
   const handleConfirm = () => {
@@ -78,9 +126,10 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
       unitWidth: parseFloat(unitWidth) || 0,
       unitLength: parseFloat(unitLength) || 0,
       beamWidth: parseFloat(beamWidth) || 0,
-      interEixo: calculateInterEixo(),
+      interEixo: parseFloat(interEixo) || 0,
       initialExclusion: parseFloat(initialExclusion) || 0,
       finalExclusion: parseFloat(finalExclusion) || 0,
+      reinforcement,
     }
 
     onConfirm(config)
@@ -89,7 +138,7 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Configurar Vigotas da Laje</DialogTitle>
         </DialogHeader>
@@ -136,44 +185,46 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label className="font-semibold">Dimensões da Lajota (cm)</Label>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="space-y-1">
-                <Label htmlFor="u-height" className="text-xs">
-                  Altura
-                </Label>
-                <Input
-                  id="u-height"
-                  type="number"
-                  value={unitHeight}
-                  onChange={(e) => setUnitHeight(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="u-width" className="text-xs">
-                  Largura
-                </Label>
-                <Input
-                  id="u-width"
-                  type="number"
-                  value={unitWidth}
-                  onChange={(e) => setUnitWidth(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="u-length" className="text-xs">
-                  Comprimento
-                </Label>
-                <Input
-                  id="u-length"
-                  type="number"
-                  value={unitLength}
-                  onChange={(e) => setUnitLength(e.target.value)}
-                />
+          {material !== 'concrete' && (
+            <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+              <Label className="font-semibold">Dimensões da Lajota (cm)</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="u-height" className="text-xs">
+                    Altura
+                  </Label>
+                  <Input
+                    id="u-height"
+                    type="number"
+                    value={unitHeight}
+                    onChange={(e) => setUnitHeight(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="u-width" className="text-xs">
+                    Largura
+                  </Label>
+                  <Input
+                    id="u-width"
+                    type="number"
+                    value={unitWidth}
+                    onChange={(e) => setUnitWidth(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="u-length" className="text-xs">
+                    Comprimento
+                  </Label>
+                  <Input
+                    id="u-length"
+                    type="number"
+                    value={unitLength}
+                    onChange={(e) => setUnitLength(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -186,10 +237,13 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
               />
             </div>
             <div className="space-y-2">
-              <Label>Inter Eixo (cm)</Label>
-              <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-                {calculateInterEixo()}
-              </div>
+              <Label htmlFor="inter-eixo">Inter Eixo (cm)</Label>
+              <Input
+                id="inter-eixo"
+                type="number"
+                value={interEixo}
+                onChange={(e) => setInterEixo(e.target.value)}
+              />
             </div>
           </div>
 
@@ -218,6 +272,125 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
                   onChange={(e) => setFinalExclusion(e.target.value)}
                 />
               </div>
+            </div>
+          </div>
+
+          <div className="space-y-2 border-t pt-2">
+            <div className="flex items-center justify-between">
+              <Label className="font-semibold">
+                Adicional Positivo na Vigota
+              </Label>
+              {reinforcement.length < 2 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddReinforcement}
+                  className="h-7 px-2 text-xs"
+                >
+                  <Plus className="h-3 w-3 mr-1" /> Adicionar
+                </Button>
+              )}
+            </div>
+
+            {reinforcement.length === 0 && (
+              <p className="text-xs text-muted-foreground italic">
+                Nenhum adicional configurado.
+              </p>
+            )}
+
+            <div className="space-y-3">
+              {reinforcement.map((item, index) => (
+                <div
+                  key={item.id}
+                  className="grid grid-cols-12 gap-2 items-end border p-2 rounded-md bg-muted/20"
+                >
+                  <div className="col-span-2 space-y-1">
+                    <Label className="text-[10px]">Qtd.</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      className="h-8 text-xs"
+                      value={item.quantity}
+                      onChange={(e) =>
+                        updateReinforcement(
+                          item.id,
+                          'quantity',
+                          parseInt(e.target.value) || 0,
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="col-span-3 space-y-1">
+                    <Label className="text-[10px]">Tipo</Label>
+                    <Select
+                      value={item.steelType}
+                      onValueChange={(v) =>
+                        updateReinforcement(item.id, 'steelType', v)
+                      }
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STEEL_TYPES.map((t) => (
+                          <SelectItem key={t} value={t} className="text-xs">
+                            {t}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="col-span-3 space-y-1">
+                    <Label className="text-[10px]">Bitola (mm)</Label>
+                    <Select
+                      value={item.diameter}
+                      onValueChange={(v) =>
+                        updateReinforcement(item.id, 'diameter', v)
+                      }
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(item.steelType === 'CA50'
+                          ? DIAMETERS_CA50
+                          : DIAMETERS_CA60
+                        ).map((d) => (
+                          <SelectItem key={d} value={d} className="text-xs">
+                            {d}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="col-span-3 space-y-1">
+                    <Label className="text-[10px]">Ancoragem (cm)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      className="h-8 text-xs"
+                      value={item.anchorage}
+                      onChange={(e) =>
+                        updateReinforcement(
+                          item.id,
+                          'anchorage',
+                          parseFloat(e.target.value) || 0,
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="col-span-1 flex justify-end pb-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => handleRemoveReinforcement(item.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

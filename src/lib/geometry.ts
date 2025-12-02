@@ -630,13 +630,14 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
 
   return slabs.map((slab, index) => {
     const label = slab.properties?.label || `Laje ${index + 1}`
-    const type = slab.properties?.slabConfig?.type || '-'
+    const config = slab.properties?.slabConfig
+    const type = config?.type || '-'
     const material =
-      slab.properties?.slabConfig?.material === 'ceramic'
+      config?.material === 'ceramic'
         ? 'Cerâmica'
-        : slab.properties?.slabConfig?.material === 'eps'
+        : config?.material === 'eps'
           ? 'EPS'
-          : slab.properties?.slabConfig?.material === 'concrete'
+          : config?.material === 'concrete'
             ? 'Concreto Maciço'
             : '-'
 
@@ -663,8 +664,7 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
         ),
     )
 
-    // Calculate area: Use net area if joist arrow exists (which implies direction and config)
-    // otherwise fall back to stored area or polygon area
+    // Calculate area
     let area = slab.properties?.area || calculatePolygonArea(slab.points)
     if (joistArrow) {
       area = calculateNetSlabArea(slab, joistArrow)
@@ -674,9 +674,32 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
     let vigotaSummary = ''
     let vigotaDetails: { length: string; count: number }[] = []
     let generatedLengths: number[] = []
+    let reinforcementSummary = ''
 
-    if (joistArrow && slab.properties?.slabConfig) {
+    if (joistArrow && config) {
       generatedLengths = calculateVigotaLengths(slab, joistArrow)
+
+      // Calculate Reinforcement if configured
+      if (config.reinforcement && config.reinforcement.length > 0) {
+        const steelTotals: Record<string, number> = {}
+
+        config.reinforcement.forEach((r) => {
+          const key = `${r.steelType} ${r.diameter}mm`
+          if (!steelTotals[key]) steelTotals[key] = 0
+
+          const quantity = r.quantity || 1
+          const anchorageMeters = (r.anchorage || 0) / 100
+
+          generatedLengths.forEach((len) => {
+            const totalLenPerVigota = len + anchorageMeters
+            steelTotals[key] += totalLenPerVigota * quantity
+          })
+        })
+
+        reinforcementSummary = Object.entries(steelTotals)
+          .map(([k, v]) => `${v.toFixed(2)}m ${k}`)
+          .join(', ')
+      }
     }
 
     // Find manual vigotas inside this slab
@@ -741,6 +764,7 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
       vigotaDetails,
       hasExtraVigotas: manualLengths.length > 0,
       extraVigotaCount: manualLengths.length,
+      reinforcementSummary,
     }
   })
 }
