@@ -65,6 +65,8 @@ export const getAllPlans = async () => {
     .eq('is_active', true)
     .order('price', { ascending: true })
 
+  console.log('getAllPlans result:', { data, error })
+
   return { data: data as Plan[] | null, error }
 }
 
