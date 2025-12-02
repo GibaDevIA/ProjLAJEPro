@@ -59,10 +59,10 @@ export const getUsers = async ({
 }
 
 export const getAllPlans = async () => {
+  // Removed .eq('is_active', true) to allow admins to see all plans regardless of status
   const { data, error } = await supabase
     .from('plans')
     .select('id, name, duration_days')
-    .eq('is_active', true)
     .order('price', { ascending: true })
 
   console.log('getAllPlans result:', { data, error })
