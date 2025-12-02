@@ -10,11 +10,13 @@ import {
   isPointInShape,
   isWorldPointInShape,
   getOrthogonalPoint,
+  areLinesParallel,
 } from '@/lib/geometry'
-import { Point, Shape, SlabConfig } from '@/types/drawing'
+import { Point, Shape, SlabConfig, TransverseRibConfig } from '@/types/drawing'
 import { ShapeRenderer } from './ShapeRenderer'
 import { MeasureModal } from './MeasureModal'
 import { SlabConfigurationModal } from './SlabConfigurationModal'
+import { TransverseRibModal } from './TransverseRibModal'
 import { generateId, cn } from '@/lib/utils'
 import {
   ContextMenu,
@@ -35,6 +37,7 @@ export const Canvas: React.FC = () => {
     view,
     setView,
     tool,
+    setTool,
     activeShapeId,
     setActiveShapeId,
     gridVisible,
@@ -43,6 +46,8 @@ export const Canvas: React.FC = () => {
     setDrawingStart,
     addRectangle,
     orthoMode,
+    pendingRibConfig,
+    setPendingRibConfig,
   } = useDrawing()
 
   // State for panning
@@ -60,6 +65,9 @@ export const Canvas: React.FC = () => {
   const [drawingJoistForSlabId, setDrawingJoistForSlabId] = useState<
     string | null
   >(null)
+
+  // State for Rib Workflow
+  const [showRibModal, setShowRibModal] = useState(false)
 
   // State for moving objects
   const [isMovingShape, setIsMovingShape] = useState(false)
@@ -93,6 +101,13 @@ export const Canvas: React.FC = () => {
     }
   }, [view.offset.x, view.offset.y, setView])
 
+  // Listen for Transverse Rib Tool activation to open modal
+  useEffect(() => {
+    if (tool === 'transverse_rib' && !drawingStart && !pendingRibConfig) {
+      setShowRibModal(true)
+    }
+  }, [tool, drawingStart, pendingRibConfig])
+
   // Keyboard shortcuts for deletion
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -105,11 +120,22 @@ export const Canvas: React.FC = () => {
         setPolyPoints([])
         setShowMeasureModal(false)
         setDrawingJoistForSlabId(null)
+        if (tool === 'transverse_rib') {
+          setPendingRibConfig(null)
+          setTool('select')
+        }
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activeShapeId, removeShape, setDrawingStart])
+  }, [
+    activeShapeId,
+    removeShape,
+    setDrawingStart,
+    tool,
+    setTool,
+    setPendingRibConfig,
+  ])
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault()
@@ -331,6 +357,85 @@ export const Canvas: React.FC = () => {
             toast.error('Clique em uma laje para configurar as vigotas.')
           }
         }
+      } else if (tool === 'transverse_rib') {
+        if (drawingStart) {
+          // Finish drawing rib
+          // Snap/Ortho logic happens in render/preview, but we need end point
+          let endPoint = snapPoint ? snapPoint.point : worldPos
+
+          // Force Ortho
+          endPoint = getOrthogonalPoint(drawingStart, endPoint)
+
+          const length = calculateLineLength(drawingStart, endPoint)
+          if (length < 0.01) return
+
+          // Check parallelism with Joist
+          // 1. Find Slab at midpoint
+          const midPoint = {
+            x: (drawingStart.x + endPoint.x) / 2,
+            y: (drawingStart.y + endPoint.y) / 2,
+          }
+
+          const polygons = shapes.filter(
+            (s) => s.type === 'polygon' || s.type === 'rectangle',
+          )
+          const slab = polygons.find((s) => isWorldPointInShape(midPoint, s))
+
+          if (slab) {
+            // Find associated arrow
+            const arrow = shapes.find(
+              (s) =>
+                s.type === 'arrow' &&
+                s.properties?.isJoist &&
+                isWorldPointInShape(
+                  {
+                    x: (s.points[0].x + s.points[1].x) / 2,
+                    y: (s.points[0].y + s.points[1].y) / 2,
+                  },
+                  slab,
+                ),
+            )
+
+            if (arrow) {
+              // Check angle
+              if (
+                areLinesParallel(
+                  drawingStart,
+                  endPoint,
+                  arrow.points[0],
+                  arrow.points[1],
+                  5, // Tolerance
+                )
+              ) {
+                toast.error('A nervura só pode ser transversal à vigota.', {
+                  duration: 4000,
+                  icon: '⚠️',
+                })
+                return // Prevent drawing
+              }
+            }
+          }
+
+          if (pendingRibConfig) {
+            const newShape: Shape = {
+              id: generateId(),
+              type: 'rib',
+              points: [drawingStart, endPoint],
+              properties: {
+                ribConfig: pendingRibConfig,
+              },
+            }
+            addShape(newShape)
+            toast.success('Nervura adicionada.')
+          } else {
+            toast.error('Configuração da nervura perdida.')
+          }
+          setDrawingStart(null)
+        } else {
+          // Start drawing rib
+          const startPoint = snapPoint ? snapPoint.point : worldPos
+          setDrawingStart(startPoint)
+        }
       }
     }
   }
@@ -424,7 +529,8 @@ export const Canvas: React.FC = () => {
       tool === 'line' ||
       tool === 'rectangle' ||
       tool === 'dimension' ||
-      tool === 'add_vigota'
+      tool === 'add_vigota' ||
+      tool === 'transverse_rib'
     ) {
       // If Ortho is ON and drawing a line, disable snapping to ensure strict orthogonality
       if (tool === 'line' && orthoMode && drawingStart) {
@@ -558,6 +664,14 @@ export const Canvas: React.FC = () => {
     }
   }
 
+  const handleRibConfigConfirm = (config: TransverseRibConfig) => {
+    setPendingRibConfig(config)
+    setShowRibModal(false)
+    toast.info(
+      'Configuração salva. Desenhe a nervura (interseção de dois pontos).',
+    )
+  }
+
   const renderGrid = () => {
     if (!gridVisible) return null
 
@@ -676,6 +790,31 @@ export const Canvas: React.FC = () => {
           >
             {length.toFixed(2)}m {angle.toFixed(1)}°
           </text>
+        </g>
+      )
+    }
+    if (tool === 'transverse_rib' && drawingStart && currentMousePos) {
+      const startScreen = worldToScreen(drawingStart, view)
+
+      let currentWorld = snapPoint
+        ? snapPoint.point
+        : screenToWorld(currentMousePos, view)
+
+      // Always force orthogonal for ribs
+      currentWorld = getOrthogonalPoint(drawingStart, currentWorld)
+      const endScreen = worldToScreen(currentWorld, view)
+
+      return (
+        <g>
+          <line
+            x1={startScreen.x}
+            y1={startScreen.y}
+            x2={endScreen.x}
+            y2={endScreen.y}
+            stroke="#dc2626" // Red
+            strokeWidth={2}
+            strokeDasharray="6 3" // Dashed
+          />
         </g>
       )
     }
@@ -1031,6 +1170,15 @@ export const Canvas: React.FC = () => {
                     ?.slabConfig
                 : undefined
             }
+          />
+
+          <TransverseRibModal
+            open={showRibModal}
+            onOpenChange={(open) => {
+              setShowRibModal(open)
+              if (!open && !pendingRibConfig) setTool('select')
+            }}
+            onConfirm={handleRibConfigConfirm}
           />
 
           <div className="absolute bottom-4 right-4 bg-white/90 p-2 rounded shadow text-xs font-mono pointer-events-none no-print">

@@ -111,6 +111,40 @@ export const MaterialsPanel: React.FC = () => {
                           </div>
                         </div>
                       )}
+
+                    {item.ribsData && item.ribsData.length > 0 && (
+                      <div className="pt-1 mt-1 border-t border-gray-200">
+                        <div className="font-semibold text-primary mb-1">
+                          Nervuras
+                        </div>
+                        <div className="space-y-2">
+                          {item.ribsData.map((rib, idx) => (
+                            <div
+                              key={idx}
+                              className="flex flex-col bg-white px-1.5 py-1 rounded border border-gray-100 text-[10px]"
+                            >
+                              <div className="font-medium">
+                                {rib.count}x Nervuras (
+                                {rib.channelType === 'plastic'
+                                  ? 'Plástica'
+                                  : 'Cerâmica'}
+                                )
+                              </div>
+                              <div className="text-muted-foreground">
+                                Total Linear: {rib.totalLength.toFixed(2)}m
+                              </div>
+                              <div className="text-muted-foreground">
+                                Canaletas: {Math.ceil(rib.channelCount)} un
+                              </div>
+                              <div className="text-muted-foreground">
+                                Aço: {rib.steelQuantity}x {rib.steelDiameter}mm
+                                ({rib.steelTotalLength.toFixed(2)}m)
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>

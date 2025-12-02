@@ -6,7 +6,13 @@ import React, {
   ReactNode,
   useEffect,
 } from 'react'
-import { Shape, ViewState, ToolType, Point } from '@/types/drawing'
+import {
+  Shape,
+  ViewState,
+  ToolType,
+  Point,
+  TransverseRibConfig,
+} from '@/types/drawing'
 import { findClosedCycle, calculatePolygonArea } from '@/lib/geometry'
 import { generateId } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
@@ -34,7 +40,7 @@ interface DrawingContextType {
   checkAndMergeLines: () => boolean
   drawingStart: Point | null
   setDrawingStart: React.Dispatch<React.SetStateAction<Point | null>>
-  addRectangle: (start: Point, end: Point) => boolean
+  addRectangle: (start: Point, end: Point) => Promise<boolean>
   orthoMode: boolean
   setOrthoMode: (enabled: boolean) => void
   projectId: string | null
@@ -44,6 +50,10 @@ interface DrawingContextType {
   isLoadingProject: boolean
   setIsLoadingProject: (loading: boolean) => void
   checkLimits: () => Promise<boolean>
+  pendingRibConfig: TransverseRibConfig | null
+  setPendingRibConfig: React.Dispatch<
+    React.SetStateAction<TransverseRibConfig | null>
+  >
 }
 
 const DrawingContext = createContext<DrawingContextType | undefined>(undefined)
@@ -60,6 +70,10 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
   const [gridVisible, setGridVisible] = useState(true)
   const [drawingStart, setDrawingStart] = useState<Point | null>(null)
   const [orthoMode, setOrthoMode] = useState(false)
+
+  // Rib Configuration State
+  const [pendingRibConfig, setPendingRibConfig] =
+    useState<TransverseRibConfig | null>(null)
 
   // Project State
   const [projectId, setProjectId] = useState<string | null>(null)
@@ -287,6 +301,8 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
         isLoadingProject,
         setIsLoadingProject,
         checkLimits,
+        pendingRibConfig,
+        setPendingRibConfig,
       }}
     >
       {children}

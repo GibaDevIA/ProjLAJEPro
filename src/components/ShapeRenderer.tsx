@@ -145,6 +145,30 @@ const VigotaRenderer: React.FC<ShapeRendererProps> = ({
   )
 }
 
+const RibRenderer: React.FC<ShapeRendererProps> = ({
+  shape,
+  view,
+  isSelected,
+}) => {
+  const screenPoints = shape.points.map((p) => worldToScreen(p, view))
+  const p1 = screenPoints[0]
+  const p2 = screenPoints[1]
+  return (
+    <g className="group">
+      <line
+        x1={p1.x}
+        y1={p1.y}
+        x2={p2.x}
+        y2={p2.y}
+        stroke={isSelected ? '#16a34a' : '#dc2626'} // Red or Green if selected
+        strokeWidth={2}
+        strokeDasharray="6 3" // Distinct dashing
+        className="transition-colors duration-150"
+      />
+    </g>
+  )
+}
+
 const LineRenderer: React.FC<ShapeRendererProps> = ({
   shape,
   view,
@@ -395,6 +419,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = React.memo(
     if (shape.type === 'dimension') return <DimensionRenderer {...props} />
     if (shape.type === 'arrow') return <ArrowRenderer {...props} />
     if (shape.type === 'vigota') return <VigotaRenderer {...props} />
+    if (shape.type === 'rib') return <RibRenderer {...props} />
     if (shape.type === 'line') return <LineRenderer {...props} />
     if (shape.type === 'rectangle' || shape.type === 'polygon') {
       return <SlabRenderer {...props} />

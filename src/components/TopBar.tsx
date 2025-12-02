@@ -11,6 +11,7 @@ import {
   Plus,
   Eraser,
   CornerRightUp,
+  AlignJustify,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Separator } from '@/components/ui/separator'
@@ -52,6 +53,13 @@ export const TopBar: React.FC = () => {
       icon: Plus,
       label: 'Add Vigota',
       onClick: () => setTool('add_vigota'),
+      className: '',
+    },
+    {
+      id: 'transverse_rib',
+      icon: AlignJustify,
+      label: 'Incluir Nervura',
+      onClick: () => setTool('transverse_rib'),
       className: '',
     },
     {

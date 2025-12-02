@@ -1,4 +1,4 @@
-import { Point as PointType } from '@/types/drawing' // Self reference hack to keep imports if needed, but here we define it.
+import { Point as PointType } from '@/types/drawing' // Self reference hack to keep imports if needed
 
 export type Point = {
   x: number
@@ -12,6 +12,7 @@ export type ShapeType =
   | 'arrow'
   | 'dimension'
   | 'vigota'
+  | 'rib'
 
 export interface ReinforcementConfig {
   id: string
@@ -34,6 +35,14 @@ export interface SlabConfig {
   reinforcement?: ReinforcementConfig[]
 }
 
+export interface TransverseRibConfig {
+  steelQuantity: number
+  steelDiameter: string
+  ribType: 'plastic' | 'ceramic'
+  width: number // meters
+  piecesPerMeter: number
+}
+
 export interface Shape {
   id: string
   type: ShapeType
@@ -48,6 +57,7 @@ export interface Shape {
     isJoist?: boolean
     label?: string
     slabConfig?: SlabConfig
+    ribConfig?: TransverseRibConfig
   }
 }
 
@@ -65,12 +75,23 @@ export type ToolType =
   | 'dimension'
   | 'add_vigota'
   | 'delete_vigota'
+  | 'transverse_rib'
 
 export interface SnapResult {
   point: Point
   targetPoint: Point
   distance: number
   type: 'vertex' | 'edge' | 'grid' | 'midpoint'
+}
+
+export interface RibReportData {
+  count: number
+  totalLength: number
+  channelCount: number
+  channelType: 'plastic' | 'ceramic'
+  steelTotalLength: number
+  steelDiameter: string
+  steelQuantity: number
 }
 
 export interface SlabReportItem {
@@ -92,4 +113,5 @@ export interface SlabReportItem {
   extraVigotaCount: number
   reinforcementSummary?: string
   reinforcementLines: string[]
+  ribsData?: RibReportData[]
 }

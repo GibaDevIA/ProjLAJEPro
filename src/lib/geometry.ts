@@ -5,6 +5,7 @@ import {
   Shape,
   SlabReportItem,
   SlabConfig,
+  RibReportData,
 } from '@/types/drawing'
 
 export const SNAP_THRESHOLD_PX = 10
@@ -72,7 +73,8 @@ export function isPointInShape(
   if (
     shape.type === 'line' ||
     shape.type === 'arrow' ||
-    shape.type === 'vigota'
+    shape.type === 'vigota' ||
+    shape.type === 'rib'
   ) {
     // Check distance to each segment
     for (let i = 0; i < screenPoints.length - 1; i++) {
@@ -274,6 +276,27 @@ export function getOrthogonalPoint(start: Point, current: Point): Point {
   }
 }
 
+// Helper to determine if two lines are approximately parallel
+export function areLinesParallel(
+  l1Start: Point,
+  l1End: Point,
+  l2Start: Point,
+  l2End: Point,
+  toleranceDegrees: number = 10,
+): boolean {
+  let angle1 = calculateAngle(l1Start, l1End)
+  let angle2 = calculateAngle(l2Start, l2End)
+
+  // Normalize to 0-180
+  if (angle1 < 0) angle1 += 180
+  if (angle1 >= 180) angle1 -= 180
+  if (angle2 < 0) angle2 += 180
+  if (angle2 >= 180) angle2 -= 180
+
+  const diff = Math.abs(angle1 - angle2)
+  return diff < toleranceDegrees || Math.abs(diff - 180) < toleranceDegrees
+}
+
 export function findClosedCycle(
   lines: Shape[],
 ): { lineIds: string[]; points: Point[] } | null {
@@ -365,6 +388,7 @@ export function calculateBoundingBox(points: Point[]): {
 }
 
 // --- Beam Generation Helpers ---
+// ... (Same beam generation logic)
 
 // Helper to get intersections of a ray with a polygon
 // Returns sorted t values (distance from origin along dir)
@@ -539,8 +563,6 @@ function clipPolygon(
     const valA = a.x * normal.x + a.y * normal.y
     const valB = b.x * normal.x + b.y * normal.y
 
-    // Strict comparison slightly adjusted to handle floating point precision issues if needed,
-    // but strict is usually fine for this 2D geometry context.
     const aIn = keepAbove ? valA >= limit : valA <= limit
     const bIn = keepAbove ? valB >= limit : valB <= limit
 
@@ -551,7 +573,7 @@ function clipPolygon(
           const t = (limit - valA) / (valB - valA)
           output.push({ x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) })
         } else {
-          output.push(a) // Close enough, avoid division by zero
+          output.push(a)
         }
       }
       output.push(b)
@@ -562,7 +584,7 @@ function clipPolygon(
           const t = (limit - valA) / (valB - valA)
           output.push({ x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) })
         } else {
-          output.push(b) // Close enough
+          output.push(b)
         }
       }
     }
@@ -575,14 +597,13 @@ export function calculateNetSlabArea(slab: Shape, joistArrow: Shape): number {
   if (!slab.properties?.slabConfig) return calculatePolygonArea(slab.points)
 
   const config = slab.properties.slabConfig
-  const initialExclusion = (config.initialExclusion || 0) / 100 // convert cm to meters
-  const finalExclusion = (config.finalExclusion || 0) / 100 // convert cm to meters
+  const initialExclusion = (config.initialExclusion || 0) / 100
+  const finalExclusion = (config.finalExclusion || 0) / 100
 
   if (initialExclusion === 0 && finalExclusion === 0) {
     return calculatePolygonArea(slab.points)
   }
 
-  // Direction logic (same as generateBeamLines)
   const arrowStart = joistArrow.points[0]
   const arrowEnd = joistArrow.points[1]
   const dx = arrowEnd.x - arrowStart.x
@@ -593,12 +614,9 @@ export function calculateNetSlabArea(slab: Shape, joistArrow: Shape): number {
   const ax = dx / len
   const ay = dy / len
 
-  // Projection direction (perpendicular to arrow)
-  // Rotate 90 degrees: (-y, x)
   const px = -ay
   const py = ax
 
-  // Project polygon
   let minProj = Infinity
   let maxProj = -Infinity
 
@@ -611,13 +629,9 @@ export function calculateNetSlabArea(slab: Shape, joistArrow: Shape): number {
   const limit1 = minProj + initialExclusion
   const limit2 = maxProj - finalExclusion
 
-  // If limits cross, area is 0 (exclusions overlap completely)
   if (limit1 >= limit2) return 0
 
-  // Clip against limit1 (keep >= limit1)
   let clipped = clipPolygon(slab.points, { x: px, y: py }, limit1, true)
-
-  // Clip against limit2 (keep <= limit2)
   clipped = clipPolygon(clipped, { x: px, y: py }, limit2, false)
 
   return calculatePolygonArea(clipped)
@@ -628,6 +642,7 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
     (s) => s.type === 'rectangle' || s.type === 'polygon',
   )
   const manualVigotas = shapes.filter((s) => s.type === 'vigota')
+  const ribs = shapes.filter((s) => s.type === 'rib')
 
   return slabs.map((slab, index) => {
     const label = slab.properties?.label || `Laje ${index + 1}`
@@ -731,7 +746,6 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
       const groups: Record<string, number> = {}
 
       if (slab.type === 'polygon') {
-        // Polygon: Round up to nearest 0.10m increment
         allLengths.forEach((l) => {
           const val = Number(l.toFixed(4))
           const rounded = Math.ceil(val * 10) / 10
@@ -739,7 +753,6 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
           groups[key] = (groups[key] || 0) + 1
         })
       } else {
-        // Rectangle: Exact value (2 decimals)
         allLengths.forEach((l) => {
           const val = l.toFixed(2)
           groups[val] = (groups[val] || 0) + 1
@@ -764,6 +777,52 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
         .join(', ')
     }
 
+    // --- Ribs Calculation ---
+    const slabRibs = ribs.filter((r) => {
+      const mid = {
+        x: (r.points[0].x + r.points[1].x) / 2,
+        y: (r.points[0].y + r.points[1].y) / 2,
+      }
+      return isWorldPointInShape(mid, slab)
+    })
+
+    const ribsData: RibReportData[] = []
+    const ribGroups = new Map<string, RibReportData>()
+
+    slabRibs.forEach((rib) => {
+      if (!rib.properties?.ribConfig) return
+      const conf = rib.properties.ribConfig
+      const length = calculateLineLength(rib.points[0], rib.points[1])
+
+      // Key based on config so we group identical ribs types
+      const key = `${conf.ribType}-${conf.steelDiameter}-${conf.steelQuantity}-${conf.piecesPerMeter}`
+
+      if (!ribGroups.has(key)) {
+        ribGroups.set(key, {
+          count: 0,
+          totalLength: 0,
+          channelCount: 0,
+          channelType: conf.ribType,
+          steelTotalLength: 0,
+          steelDiameter: conf.steelDiameter,
+          steelQuantity: conf.steelQuantity,
+        })
+      }
+
+      const group = ribGroups.get(key)!
+      group.count++
+      group.totalLength += length
+
+      // Material Calc
+      const channels = length * conf.piecesPerMeter
+      group.channelCount += channels
+
+      const steel = length * conf.steelQuantity
+      group.steelTotalLength += steel
+    })
+
+    ribsData.push(...Array.from(ribGroups.values()))
+
     return {
       id: slab.id,
       label,
@@ -779,6 +838,7 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
       extraVigotaCount: manualLengths.length,
       reinforcementSummary,
       reinforcementLines,
+      ribsData,
     }
   })
 }
@@ -790,7 +850,6 @@ export function formatJoistReinforcementText(
   diameter: string,
   totalLength: number,
 ): string {
-  // "X fio de Ymm c/Z,ZZm"
   return `${quantity} fio de ${diameter}mm c/${totalLength.toFixed(2).replace('.', ',')}m`
 }
 
@@ -799,7 +858,6 @@ export function formatSlabSummaryText(
   diameter: string,
   totalLength: number,
 ): string {
-  // "X fios de Ymm c/Z,ZZm"
   return `${quantity} fios de ${diameter}mm c/${totalLength.toFixed(2).replace('.', ',')}m`
 }
 
@@ -826,7 +884,6 @@ export function getSlabReinforcementSummary(
   if (!config || !config.reinforcement || config.reinforcement.length === 0)
     return []
 
-  // Key: "diameter-totalLength" -> Data
   const summaryMap = new Map<
     string,
     { quantity: number; diameter: string; length: number }
@@ -835,7 +892,6 @@ export function getSlabReinforcementSummary(
   lengths.forEach((len) => {
     config.reinforcement!.forEach((r) => {
       const totalLen = len + (r.anchorage || 0) / 100
-      // Use 2 decimal places for key to group correctly
       const lenKey = totalLen.toFixed(2)
       const key = `${r.diameter}-${lenKey}`
 
