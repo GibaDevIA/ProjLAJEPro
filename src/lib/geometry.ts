@@ -673,9 +673,14 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
 
     let vigotaCount = 0
     let vigotaSummary = ''
-    let vigotaDetails: { length: string; count: number }[] = []
+    let vigotaDetails: {
+      length: string
+      count: number
+      reinforcementText: string[]
+    }[] = []
     let generatedLengths: number[] = []
     let reinforcementSummary = ''
+    let reinforcementLines: string[] = []
 
     if (joistArrow && config) {
       generatedLengths = calculateVigotaLengths(slab, joistArrow)
@@ -700,6 +705,9 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
         reinforcementSummary = Object.entries(steelTotals)
           .map(([k, v]) => `${v.toFixed(2)}m ${k}`)
           .join(', ')
+
+        // Get broken down lines
+        reinforcementLines = getSlabReinforcementSummary(slab, joistArrow)
       }
     }
 
@@ -742,10 +750,14 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
         (a, b) => Number(b) - Number(a),
       )
 
-      vigotaDetails = sortedLengths.map((len) => ({
-        length: len,
-        count: groups[len],
-      }))
+      vigotaDetails = sortedLengths.map((len) => {
+        const lengthNum = parseFloat(len)
+        return {
+          length: len,
+          count: groups[len],
+          reinforcementText: getJoistReinforcementDetails(lengthNum, config),
+        }
+      })
 
       vigotaSummary = sortedLengths
         .map((len) => `${groups[len]}x ${len}m`)
@@ -766,6 +778,7 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
       hasExtraVigotas: manualLengths.length > 0,
       extraVigotaCount: manualLengths.length,
       reinforcementSummary,
+      reinforcementLines,
     }
   })
 }

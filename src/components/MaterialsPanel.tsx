@@ -58,16 +58,26 @@ export const MaterialsPanel: React.FC = () => {
                         <div className="font-semibold text-primary mb-1">
                           Vigotas
                         </div>
-                        <div className="grid grid-cols-2 gap-1">
+                        <div className="space-y-2">
                           {item.vigotaDetails.map((detail) => (
                             <div
                               key={detail.length}
-                              className="flex justify-between bg-white px-1.5 py-0.5 rounded border border-gray-100"
+                              className="flex flex-col bg-white px-1.5 py-1 rounded border border-gray-100"
                             >
-                              <span>{detail.count}x</span>
-                              <span className="font-medium">
-                                {detail.length}m
-                              </span>
+                              <div className="flex justify-between font-medium">
+                                <span>{detail.count}x</span>
+                                <span>{detail.length}m</span>
+                              </div>
+                              {detail.reinforcementText &&
+                                detail.reinforcementText.length > 0 && (
+                                  <div className="mt-1 text-[10px] text-muted-foreground border-t border-gray-50 pt-1">
+                                    {detail.reinforcementText.map(
+                                      (line, idx) => (
+                                        <div key={idx}>{line}</div>
+                                      ),
+                                    )}
+                                  </div>
+                                )}
                             </div>
                           ))}
                         </div>
@@ -82,6 +92,25 @@ export const MaterialsPanel: React.FC = () => {
                         Defina a direção (Vigota)
                       </div>
                     )}
+
+                    {item.reinforcementLines &&
+                      item.reinforcementLines.length > 0 && (
+                        <div className="pt-1 mt-1 border-t border-gray-200">
+                          <div className="font-semibold text-primary mb-1">
+                            Resumo do Aço
+                          </div>
+                          <div className="space-y-0.5">
+                            {item.reinforcementLines.map((line, idx) => (
+                              <div
+                                key={idx}
+                                className="text-xs text-gray-700 font-medium"
+                              >
+                                {line}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                   </div>
                 )}
               </CardContent>

@@ -83,8 +83,13 @@ export interface SlabReportItem {
   material: string
   vigotaCount: number
   vigotaSummary: string
-  vigotaDetails: { length: string; count: number }[]
+  vigotaDetails: {
+    length: string
+    count: number
+    reinforcementText: string[]
+  }[]
   hasExtraVigotas: boolean
   extraVigotaCount: number
   reinforcementSummary?: string
+  reinforcementLines: string[]
 }

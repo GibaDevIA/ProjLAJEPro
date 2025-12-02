@@ -7,8 +7,6 @@ import {
   calculateLineLength,
   generateBeamLines,
   getSlabJoistCount,
-  getJoistReinforcementDetails,
-  getSlabReinforcementSummary,
 } from '@/lib/geometry'
 import { formatDimension } from '@/lib/utils'
 
@@ -253,14 +251,6 @@ const SlabRenderer: React.FC<ShapeRendererProps> = ({
     return calculatePolygonArea(shape.points)
   }, [shape, joistArrow])
 
-  // Get Slab Summary
-  const slabSummary = useMemo(() => {
-    if (joistArrow && shape.properties?.slabConfig) {
-      return getSlabReinforcementSummary(shape, joistArrow)
-    }
-    return []
-  }, [shape, joistArrow])
-
   const pathData = `M ${screenPoints.map((p) => `${p.x},${p.y}`).join(' L ')} Z`
 
   const centroid = screenPoints.reduce(
@@ -322,10 +312,9 @@ const SlabRenderer: React.FC<ShapeRendererProps> = ({
   const joistCountText = joistCount > 0 ? `(${joistCount}vt)` : ''
 
   // Calculate label box height
-  // Base height for Label + Count: 20px
-  // Each summary line: ~10px
-  const labelBoxHeight = 20 + Math.max(0, slabSummary.length * 12)
-  const labelBoxY = -10 - (slabSummary.length * 12) / 2 // Center vertically
+  // Simplified height for Label + Count only: 24px
+  const labelBoxHeight = 24
+  const labelBoxY = -12 // Center vertically
 
   return (
     <g className="group">
@@ -339,26 +328,10 @@ const SlabRenderer: React.FC<ShapeRendererProps> = ({
         className="transition-colors duration-150"
       />
 
-      {/* Render Beams and their details */}
+      {/* Render Beams (lines only, no text) */}
       {beamLines.map((line, i) => {
         const p1 = worldToScreen(line[0], view)
         const p2 = worldToScreen(line[1], view)
-        const worldLength = calculateLineLength(line[0], line[1])
-
-        // Generate individual joist reinforcement details
-        const reinfDetails = getJoistReinforcementDetails(
-          worldLength,
-          shape.properties?.slabConfig,
-        )
-
-        // Calculate angle for text rotation
-        const angleRad = Math.atan2(p2.y - p1.y, p2.x - p1.x)
-        let angleDeg = (angleRad * 180) / Math.PI
-        if (angleDeg > 90) angleDeg -= 180
-        if (angleDeg < -90) angleDeg += 180
-
-        const midX = (p1.x + p2.x) / 2
-        const midY = (p1.y + p2.y) / 2
 
         return (
           <g key={`beam-${i}`}>
@@ -372,23 +345,6 @@ const SlabRenderer: React.FC<ShapeRendererProps> = ({
               strokeOpacity={0.6}
               strokeDasharray="4 4"
             />
-            {reinfDetails.map((text, idx) => (
-              <g
-                key={`reinf-${idx}`}
-                transform={`translate(${midX}, ${midY}) rotate(${angleDeg})`}
-              >
-                <text
-                  x="0"
-                  y={12 + idx * 10} // Position below the line
-                  textAnchor="middle"
-                  className="text-[8px] font-normal select-none pointer-events-none"
-                  fill="#374151"
-                  style={{ fontSize: '8px', fontFamily: 'Inter' }}
-                >
-                  {text}
-                </text>
-              </g>
-            ))}
           </g>
         )
       })}
@@ -403,7 +359,7 @@ const SlabRenderer: React.FC<ShapeRendererProps> = ({
         />
       ))}
 
-      {/* Slab Label & Summary */}
+      {/* Slab Label Only (No Summary) */}
       <g transform={`translate(${centroid.x}, ${centroid.y})`}>
         <rect
           x="-50"
@@ -418,7 +374,7 @@ const SlabRenderer: React.FC<ShapeRendererProps> = ({
         />
         <text
           x="0"
-          y={labelBoxY + 14}
+          y={4} // Vertically centered in 24px box
           textAnchor="middle"
           className="text-[10px] font-bold pointer-events-none select-none"
           fill="#1f2937"
@@ -426,20 +382,6 @@ const SlabRenderer: React.FC<ShapeRendererProps> = ({
         >
           {labelText} {joistCountText}
         </text>
-        {/* Summary Lines */}
-        {slabSummary.map((line, idx) => (
-          <text
-            key={`sum-${idx}`}
-            x="0"
-            y={labelBoxY + 26 + idx * 12}
-            textAnchor="middle"
-            className="text-[9px] font-medium pointer-events-none select-none"
-            fill="#4b5563"
-            style={{ fontSize: '9px', fontFamily: 'Inter' }}
-          >
-            {line}
-          </text>
-        ))}
       </g>
       {dimensions}
     </g>
