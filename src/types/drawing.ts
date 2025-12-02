@@ -13,7 +13,7 @@ export type ShapeType =
 
 export interface SlabConfig {
   type: 'H8' | 'H12' | 'H16' | 'H20' | 'H25' | 'H30'
-  material: 'ceramic' | 'eps'
+  material: 'ceramic' | 'eps' | 'concrete'
   unitHeight: number // cm
   unitWidth: number // cm
   unitLength: number // cm

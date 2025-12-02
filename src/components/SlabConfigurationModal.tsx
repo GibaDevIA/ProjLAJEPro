@@ -128,6 +128,10 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
                   <RadioGroupItem value="eps" id="eps" />
                   <Label htmlFor="eps">Lajota EPS</Label>
                 </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="concrete" id="concrete" />
+                  <Label htmlFor="concrete">Concreto Maciço</Label>
+                </div>
               </RadioGroup>
             </div>
           </div>

@@ -636,7 +636,9 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
         ? 'Cerâmica'
         : slab.properties?.slabConfig?.material === 'eps'
           ? 'EPS'
-          : '-'
+          : slab.properties?.slabConfig?.material === 'concrete'
+            ? 'Concreto Maciço'
+            : '-'
 
     let width = slab.properties?.width
     let height = slab.properties?.height
