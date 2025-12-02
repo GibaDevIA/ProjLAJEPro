@@ -17,6 +17,9 @@ import Pricing from './pages/Pricing'
 import Success from './pages/Success'
 import Cancel from './pages/Cancel'
 import NotFound from './pages/NotFound'
+import TermsOfUse from './pages/TermsOfUse'
+import Privacy from './pages/Privacy'
+import Contact from './pages/Contact'
 import Layout from './components/Layout'
 import { AuthProvider } from '@/context/AuthContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
@@ -37,6 +40,11 @@ const App = () => (
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/pricing" element={<Pricing />} />
+
+          {/* Public Informational Pages */}
+          <Route path="/terms" element={<TermsOfUse />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/contact" element={<Contact />} />
 
           <Route path="/success" element={<Success />} />
           <Route path="/cancel" element={<Cancel />} />

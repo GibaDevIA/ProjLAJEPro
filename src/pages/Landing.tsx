@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { Navbar } from '@/components/landing/Navbar'
 import { HeroSection } from '@/components/landing/HeroSection'
@@ -45,15 +45,21 @@ export default function Landing() {
               reservados.
             </div>
             <div className="flex gap-6 text-sm">
-              <a href="#" className="hover:text-white transition-colors">
+              <Link to="/terms" className="hover:text-white transition-colors">
                 Termos de Uso
-              </a>
-              <a href="#" className="hover:text-white transition-colors">
+              </Link>
+              <Link
+                to="/privacy"
+                className="hover:text-white transition-colors"
+              >
                 Privacidade
-              </a>
-              <a href="#" className="hover:text-white transition-colors">
+              </Link>
+              <Link
+                to="/contact"
+                className="hover:text-white transition-colors"
+              >
                 Contato
-              </a>
+              </Link>
             </div>
           </div>
         </div>
