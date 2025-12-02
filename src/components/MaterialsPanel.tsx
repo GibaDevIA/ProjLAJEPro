@@ -4,18 +4,46 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { generateSlabReportData } from '@/lib/geometry'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Layers } from 'lucide-react'
 
 export const MaterialsPanel: React.FC = () => {
   const { shapes } = useDrawing()
   const reportData = generateSlabReportData(shapes)
 
   const totalArea = reportData.reduce((acc, item) => acc + item.area, 0)
+  const totalFillers = reportData.reduce(
+    (acc, item) => acc + (item.fillerCount || 0),
+    0,
+  )
 
   return (
     <div className="h-full flex flex-col bg-gray-50 w-full">
       <div className="p-4 border-b bg-gray-50">
         <h2 className="font-semibold text-lg">Descritivo dos Materiais</h2>
       </div>
+
+      <div className="bg-white p-4 border-b flex flex-col gap-2 shadow-sm z-10">
+        <div className="flex justify-between items-center">
+          <span className="text-sm font-medium text-muted-foreground">
+            Total Geral de Área
+          </span>
+          <span className="font-bold text-lg text-slate-800">
+            {totalArea.toFixed(2)}m²
+          </span>
+        </div>
+        {totalFillers > 0 && (
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+              <Layers className="h-4 w-4" /> Total de Lajotas/EPS
+            </span>
+            <span className="font-bold text-lg text-primary">
+              {totalFillers} un
+            </span>
+          </div>
+        )}
+      </div>
+
       <ScrollArea className="flex-1 bg-gray-50">
         <div className="p-4 space-y-4">
           {reportData.length === 0 && (
@@ -53,6 +81,24 @@ export const MaterialsPanel: React.FC = () => {
                       <span className="text-muted-foreground">Material:</span>
                       <span className="font-medium">{item.material}</span>
                     </div>
+
+                    {/* Filler Count */}
+                    {item.fillerCount !== undefined && item.fillerCount > 0 && (
+                      <div className="mt-2 bg-blue-50 p-1.5 rounded border border-blue-100 flex justify-between items-center">
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-blue-900">
+                            Enchimento (Lajota)
+                          </span>
+                          <span className="text-[10px] text-blue-700">
+                            {item.fillerType}
+                          </span>
+                        </div>
+                        <Badge className="bg-blue-600 hover:bg-blue-700 text-white">
+                          {item.fillerCount} un
+                        </Badge>
+                      </div>
+                    )}
+
                     {item.vigotaDetails.length > 0 ? (
                       <div className="pt-1 mt-1 border-t border-gray-200">
                         <div className="font-semibold text-primary mb-1">
@@ -152,12 +198,6 @@ export const MaterialsPanel: React.FC = () => {
           ))}
         </div>
       </ScrollArea>
-      <div className="p-4 border-t bg-gray-50">
-        <div className="flex justify-between items-center font-bold text-lg">
-          <span>Total Geral</span>
-          <span>{totalArea.toFixed(2)}m²</span>
-        </div>
-      </div>
     </div>
   )
 }

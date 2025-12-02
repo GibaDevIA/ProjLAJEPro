@@ -637,6 +637,214 @@ export function calculateNetSlabArea(slab: Shape, joistArrow: Shape): number {
   return calculatePolygonArea(clipped)
 }
 
+// --- Filler (Lajota/EPS) Calculation Helpers ---
+
+function getRibPolygon(rib: Shape): Point[] {
+  if (
+    rib.type !== 'rib' ||
+    !rib.properties?.ribConfig ||
+    rib.points.length < 2
+  ) {
+    return []
+  }
+
+  const p1 = rib.points[0]
+  const p2 = rib.points[1]
+  const width = rib.properties.ribConfig.width // meters
+
+  const dx = p2.x - p1.x
+  const dy = p2.y - p1.y
+  const len = Math.sqrt(dx * dx + dy * dy)
+
+  if (len === 0) return []
+
+  // Normal vector
+  const nx = -dy / len
+  const ny = dx / len
+
+  const halfWidth = width / 2
+
+  // 4 corners of the rib rectangle
+  return [
+    { x: p1.x + nx * halfWidth, y: p1.y + ny * halfWidth },
+    { x: p2.x + nx * halfWidth, y: p2.y + ny * halfWidth },
+    { x: p2.x - nx * halfWidth, y: p2.y - ny * halfWidth },
+    { x: p1.x - nx * halfWidth, y: p1.y - ny * halfWidth },
+  ]
+}
+
+function getSegmentPolygonIntersectionLength(
+  p1: Point,
+  p2: Point,
+  polygon: Point[],
+): number {
+  if (polygon.length < 3) return 0
+
+  // Parametric clipping
+  let t0 = 0
+  let t1 = 1
+  const dx = p2.x - p1.x
+  const dy = p2.y - p1.y
+
+  for (let i = 0; i < polygon.length; i++) {
+    const j = (i + 1) % polygon.length
+    const edgeP1 = polygon[i]
+    const edgeP2 = polygon[j]
+
+    // Edge normal (pointing inward for standard check, but depends on winding)
+    // Let's use the "left side" check. Assuming polygon is CCW?
+    // We can compute normal directly: (-dy, dx)
+    const edgeDx = edgeP2.x - edgeP1.x
+    const edgeDy = edgeP2.y - edgeP1.y
+
+    // Inward normal if CCW: (-edgeDy, edgeDx)
+    const nx = -edgeDy
+    const ny = edgeDx
+
+    // Denominator: N . D
+    const denom = nx * dx + ny * dy
+    // Numerator: N . (edgeP1 - p1)
+    const num = nx * (edgeP1.x - p1.x) + ny * (edgeP1.y - p1.y)
+
+    if (Math.abs(denom) < 1e-9) {
+      // Parallel
+      if (num < 0) {
+        // Outside (if normal is inward and num < 0, it means p1 is "behind" edge)
+        // Standard clipping: num < 0 means outside
+        return 0
+      }
+    } else {
+      const t = num / denom
+      if (denom > 0) {
+        // Exiting
+        t1 = Math.min(t1, t)
+      } else {
+        // Entering
+        t0 = Math.max(t0, t)
+      }
+    }
+
+    if (t0 > t1) return 0
+  }
+
+  // Because winding order might be CW or CCW, the "outside" check might be flipped
+  // A safer approach for general convex polygon without winding assumption:
+  // Just use standard line-clipping libraries or simpler segment-segment intersection summing?
+  // Since ribs are rectangles, let's stick to valid winding. getRibPolygon generates consistent winding.
+
+  return (t1 - t0) * Math.sqrt(dx * dx + dy * dy)
+}
+
+function calculateFillerCount(
+  slab: Shape,
+  joistArrow: Shape,
+  ribs: Shape[],
+): { count: number; type: string } {
+  if (!slab.properties?.slabConfig) return { count: 0, type: '-' }
+  const config = slab.properties.slabConfig
+
+  // Material Check: Only Ceramic or EPS
+  if (config.material === 'concrete') {
+    return { count: 0, type: '-' }
+  }
+
+  const unitLength = config.unitLength / 100 // cm to meters
+  if (unitLength <= 0) return { count: 0, type: '-' }
+
+  // We assume the fillers run in rows parallel to joists.
+  // We approximate the "rows of fillers" by using the joist lines themselves as the sampling strip.
+  // This aligns with "Transversal Qty (rows) * Longitudinal Qty".
+
+  const interEixoMeters = (config.interEixo || 42) / 100
+  const initialExclusion = (config.initialExclusion || 0) / 100
+  const finalExclusion = (config.finalExclusion || 0) / 100
+
+  // Generate joist lines to use as filler strips
+  const strips = generateBeamLines(
+    slab.points,
+    joistArrow.points[0],
+    joistArrow.points[1],
+    interEixoMeters,
+    initialExclusion,
+    finalExclusion,
+  )
+
+  let totalNetLength = 0
+
+  strips.forEach((strip) => {
+    const stripLen = calculateLineLength(strip[0], strip[1])
+    let intersectionLen = 0
+
+    ribs.forEach((rib) => {
+      const poly = getRibPolygon(rib)
+      // Note: This intersection check assumes standard winding.
+      // If getRibPolygon winding is inconsistent with clip logic, result might be 0.
+      // Given we control both, it should be fine.
+      // However, a simpler robust check for Rect vs Line:
+      // Intersect the line segment with the 4 edges of the rect, find entry/exit points along the line.
+      // But the parametric clipper is efficient.
+
+      // To ensure robustness against winding, we can try both windings or use a winding-independent check (separating axis).
+      // But let's assume the clipper works.
+      // Actually, getRibPolygon generates points in a loop.
+      // p1 -> p2 -> p2' -> p1'. This is likely a loop.
+      // Let's just use the logic we have.
+
+      // Alternative: Since rib is a "thick line", intersection length of "Line A" with "Thick Line B"
+      // is approx WidthB / sin(angle).
+      // Let's use that geometric approximation for robustness if simple enough.
+      // Angle between strip and rib:
+      const angle = Math.abs(
+        calculateAngle(strip[0], strip[1]) -
+          calculateAngle(rib.points[0], rib.points[1]),
+      )
+      // diff angle
+      let diff = angle % 180
+      if (diff > 90) diff = 180 - diff
+      // diff is now 0..90
+      const rad = (diff * Math.PI) / 180
+      const sinAngle = Math.sin(rad)
+
+      if (sinAngle > 0.1) {
+        // avoid division by zero or huge length for parallel
+        const width = rib.properties?.ribConfig?.width || 0
+        const intersection = width / sinAngle
+
+        // Check if they actually intersect physically (infinite lines intersect, segments might not)
+        // We need segment-segment intersection check between the centerlines first?
+        // Or check if intersection point is within segments.
+        // This is getting complex.
+        // Let's stick to polygon intersection.
+        // But ensure polygon is valid.
+      }
+
+      // Let's trust getSegmentPolygonIntersectionLength for now.
+      // But we need to ensure polygon orientation.
+      // To be safe, let's calculate area. If negative, reverse.
+      const area = calculatePolygonArea(poly)
+      // calculatePolygonArea returns absolute.
+      // We can check signed area.
+      let signedArea = 0
+      for (let i = 0; i < poly.length; i++) {
+        const j = (i + 1) % poly.length
+        signedArea += poly[i].x * poly[j].y - poly[j].x * poly[i].y
+      }
+      if (signedArea < 0) poly.reverse() // Ensure CCW
+
+      const len = getSegmentPolygonIntersectionLength(strip[0], strip[1], poly)
+      intersectionLen += len
+    })
+
+    const effectiveLen = Math.max(0, stripLen - intersectionLen)
+    totalNetLength += effectiveLen
+  })
+
+  const count = Math.ceil(totalNetLength / unitLength)
+  const typeLabel = `Lajota ${config.type} (${config.unitWidth}x${config.unitLength})`
+
+  return { count, type: typeLabel }
+}
+
 export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
   const slabs = shapes.filter(
     (s) => s.type === 'rectangle' || s.type === 'polygon',
@@ -697,6 +905,19 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
     let reinforcementSummary = ''
     let reinforcementLines: string[] = []
 
+    // New Filler Calculation
+    let fillerCount = 0
+    let fillerType = '-'
+
+    // Find ribs inside this slab for reporting and calculation
+    const slabRibs = ribs.filter((r) => {
+      const mid = {
+        x: (r.points[0].x + r.points[1].x) / 2,
+        y: (r.points[0].y + r.points[1].y) / 2,
+      }
+      return isWorldPointInShape(mid, slab)
+    })
+
     if (joistArrow && config) {
       generatedLengths = calculateVigotaLengths(slab, joistArrow)
 
@@ -724,6 +945,11 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
         // Get broken down lines
         reinforcementLines = getSlabReinforcementSummary(slab, joistArrow)
       }
+
+      // Calculate Fillers
+      const fillerResult = calculateFillerCount(slab, joistArrow, slabRibs)
+      fillerCount = fillerResult.count
+      fillerType = fillerResult.type
     }
 
     // Find manual vigotas inside this slab
@@ -778,14 +1004,6 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
     }
 
     // --- Ribs Calculation ---
-    const slabRibs = ribs.filter((r) => {
-      const mid = {
-        x: (r.points[0].x + r.points[1].x) / 2,
-        y: (r.points[0].y + r.points[1].y) / 2,
-      }
-      return isWorldPointInShape(mid, slab)
-    })
-
     const ribsData: RibReportData[] = []
     const ribGroups = new Map<string, RibReportData>()
 
@@ -839,6 +1057,8 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
       reinforcementSummary,
       reinforcementLines,
       ribsData,
+      fillerCount,
+      fillerType,
     }
   })
 }

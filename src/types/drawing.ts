@@ -114,4 +114,6 @@ export interface SlabReportItem {
   reinforcementSummary?: string
   reinforcementLines: string[]
   ribsData?: RibReportData[]
+  fillerCount?: number
+  fillerType?: string
 }
