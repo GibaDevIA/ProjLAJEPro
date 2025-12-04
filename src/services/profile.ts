@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
+import { Json } from '@/lib/supabase/types'
 
 export interface Profile {
   id: string
@@ -7,6 +8,7 @@ export interface Profile {
   plan_id: string
   created_at: string
   updated_at: string | null
+  last_joist_config: Json | null
 }
 
 export const getProfile = async (userId: string) => {

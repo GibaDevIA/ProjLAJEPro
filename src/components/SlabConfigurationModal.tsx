@@ -20,6 +20,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { SlabConfig, ReinforcementConfig } from '@/types/drawing'
 import { generateId } from '@/lib/utils'
 import { Plus, Trash2 } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
+import { getProfile, updateProfile } from '@/services/profile'
 
 interface SlabConfigurationModalProps {
   open: boolean
@@ -38,6 +40,7 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
   onConfirm,
   initialConfig,
 }) => {
+  const { user } = useAuth()
   const [type, setType] = useState<SlabConfig['type']>('H8')
   const [material, setMaterial] = useState<SlabConfig['material']>('ceramic')
   const [unitHeight, setUnitHeight] = useState('7')
@@ -48,6 +51,49 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
   const [initialExclusion, setInitialExclusion] = useState('0')
   const [finalExclusion, setFinalExclusion] = useState('0')
   const [reinforcement, setReinforcement] = useState<ReinforcementConfig[]>([])
+
+  const getMappedMaterial = (m: SlabConfig['material']) => {
+    switch (m) {
+      case 'ceramic':
+        return 'Ceramica'
+      case 'eps':
+        return 'EPS'
+      case 'concrete':
+        return 'Concreto'
+      default:
+        return 'Ceramica'
+    }
+  }
+
+  const getInternalMaterial = (m: string): SlabConfig['material'] => {
+    switch (m) {
+      case 'Ceramica':
+        return 'ceramic'
+      case 'EPS':
+        return 'eps'
+      case 'Concreto':
+        return 'concrete'
+      default:
+        return 'ceramic'
+    }
+  }
+
+  const calculateHeight = (t: SlabConfig['type']) => {
+    switch (t) {
+      case 'H8':
+        return '7'
+      case 'H12':
+        return '11'
+      case 'H16':
+        return '15'
+      case 'H20':
+        return '19'
+      case 'H25':
+        return '24'
+      default:
+        return null
+    }
+  }
 
   useEffect(() => {
     if (open && initialConfig) {
@@ -73,8 +119,49 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
       setInitialExclusion('0')
       setFinalExclusion('0')
       setReinforcement([])
+
+      // Try to load from profile
+      if (user) {
+        getProfile(user.id).then(({ data }) => {
+          if (data?.last_joist_config) {
+            const config = data.last_joist_config as any
+            if (config.slabType) setType(config.slabType)
+            if (config.joistBlockType)
+              setMaterial(getInternalMaterial(config.joistBlockType))
+            if (config.joistBlockHeight)
+              setUnitHeight(config.joistBlockHeight.toString())
+            if (config.joistBlockLength)
+              setUnitLength(config.joistBlockLength.toString())
+          }
+        })
+      }
     }
-  }, [open, initialConfig])
+  }, [open, initialConfig, user])
+
+  const handleTypeChange = (newType: SlabConfig['type']) => {
+    setType(newType)
+    if (material !== 'concrete') {
+      const h = calculateHeight(newType)
+      if (h) setUnitHeight(h)
+    }
+  }
+
+  const handleMaterialChange = (newMaterial: SlabConfig['material']) => {
+    setMaterial(newMaterial)
+    if (newMaterial === 'eps') {
+      setUnitLength('100')
+    }
+    // Also recalculate height if we switched to a material that supports auto-height
+    // and the current height might be outdated (optional, but good UX).
+    // However, sticking strictly to requirements:
+    // "When the user selects a slab type ... Automatic Joist Block Height Calculation must only apply when ... 'Cerâmica' or 'EPS'"
+    // It doesn't explicitly say to recalc on material change, but it makes sense if we want consistent state.
+    // If user switches from Concrete (manual) to Ceramic, re-applying the rule ensures consistency.
+    if (newMaterial !== 'concrete') {
+      const h = calculateHeight(type)
+      if (h) setUnitHeight(h)
+    }
+  }
 
   const handleAddReinforcement = () => {
     if (reinforcement.length >= 2) return
@@ -118,7 +205,7 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
     )
   }
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     const config: SlabConfig = {
       type,
       material,
@@ -130,6 +217,21 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
       initialExclusion: parseFloat(initialExclusion) || 0,
       finalExclusion: parseFloat(finalExclusion) || 0,
       reinforcement,
+    }
+
+    if (user) {
+      const savedConfig = {
+        slabType: type,
+        joistBlockType: getMappedMaterial(material),
+        joistBlockHeight: parseFloat(unitHeight) || 0,
+        joistBlockLength: parseFloat(unitLength) || 0,
+      }
+      // We don't await here to avoid blocking UI, just fire and forget
+      updateProfile(user.id, { last_joist_config: savedConfig }).catch(
+        (err) => {
+          console.error('Failed to save joist config preference:', err)
+        },
+      )
     }
 
     onConfirm(config)
@@ -148,7 +250,7 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
               <Label>Tipo de Laje</Label>
               <Select
                 value={type}
-                onValueChange={(v) => setType(v as SlabConfig['type'])}
+                onValueChange={(v) => handleTypeChange(v as SlabConfig['type'])}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione" />
@@ -166,7 +268,9 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
               <Label>Material de Enchimento</Label>
               <RadioGroup
                 value={material}
-                onValueChange={(v) => setMaterial(v as SlabConfig['material'])}
+                onValueChange={(v) =>
+                  handleMaterialChange(v as SlabConfig['material'])
+                }
                 className="flex flex-col space-y-1"
               >
                 <div className="flex items-center space-x-2">
