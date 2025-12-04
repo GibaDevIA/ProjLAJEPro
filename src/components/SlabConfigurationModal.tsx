@@ -52,19 +52,6 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
   const [finalExclusion, setFinalExclusion] = useState('0')
   const [reinforcement, setReinforcement] = useState<ReinforcementConfig[]>([])
 
-  const getMappedMaterial = (m: SlabConfig['material']) => {
-    switch (m) {
-      case 'ceramic':
-        return 'Ceramica'
-      case 'eps':
-        return 'EPS'
-      case 'concrete':
-        return 'Concreto'
-      default:
-        return 'Ceramica'
-    }
-  }
-
   const getInternalMaterial = (m: string): SlabConfig['material'] => {
     switch (m) {
       case 'Ceramica':
@@ -125,12 +112,22 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
         getProfile(user.id).then(({ data }) => {
           if (data?.last_joist_config) {
             const config = data.last_joist_config as any
-            if (config.slabType) setType(config.slabType)
-            if (config.joistBlockType)
+            // New format
+            if (config.type) setType(config.type)
+            if (config.material) setMaterial(config.material)
+            if (config.unitHeight) setUnitHeight(config.unitHeight.toString())
+            if (config.unitWidth) setUnitWidth(config.unitWidth.toString())
+            if (config.unitLength) setUnitLength(config.unitLength.toString())
+            if (config.beamWidth) setBeamWidth(config.beamWidth.toString())
+            if (config.interEixo) setInterEixo(config.interEixo.toString())
+
+            // Legacy support (for data saved before this update)
+            if (!config.type && config.slabType) setType(config.slabType)
+            if (!config.material && config.joistBlockType)
               setMaterial(getInternalMaterial(config.joistBlockType))
-            if (config.joistBlockHeight)
+            if (!config.unitHeight && config.joistBlockHeight)
               setUnitHeight(config.joistBlockHeight.toString())
-            if (config.joistBlockLength)
+            if (!config.unitLength && config.joistBlockLength)
               setUnitLength(config.joistBlockLength.toString())
           }
         })
@@ -148,15 +145,14 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
 
   const handleMaterialChange = (newMaterial: SlabConfig['material']) => {
     setMaterial(newMaterial)
+
+    // Auto-fill unit length based on material
     if (newMaterial === 'eps') {
       setUnitLength('100')
+    } else if (newMaterial === 'ceramic') {
+      setUnitLength('20')
     }
-    // Also recalculate height if we switched to a material that supports auto-height
-    // and the current height might be outdated (optional, but good UX).
-    // However, sticking strictly to requirements:
-    // "When the user selects a slab type ... Automatic Joist Block Height Calculation must only apply when ... 'Cerâmica' or 'EPS'"
-    // It doesn't explicitly say to recalc on material change, but it makes sense if we want consistent state.
-    // If user switches from Concrete (manual) to Ceramic, re-applying the rule ensures consistency.
+
     if (newMaterial !== 'concrete') {
       const h = calculateHeight(type)
       if (h) setUnitHeight(h)
@@ -190,7 +186,6 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
       reinforcement.map((r) => {
         if (r.id === id) {
           const updated = { ...r, [field]: value }
-          // Reset diameter if type changes and current diameter is not valid
           if (field === 'steelType') {
             const validDiameters =
               value === 'CA50' ? DIAMETERS_CA50 : DIAMETERS_CA60
@@ -221,12 +216,18 @@ export const SlabConfigurationModal: React.FC<SlabConfigurationModalProps> = ({
 
     if (user) {
       const savedConfig = {
-        slabType: type,
-        joistBlockType: getMappedMaterial(material),
-        joistBlockHeight: parseFloat(unitHeight) || 0,
-        joistBlockLength: parseFloat(unitLength) || 0,
+        type: type,
+        material: material,
+        unitHeight: parseFloat(unitHeight) || 0,
+        unitWidth: parseFloat(unitWidth) || 0,
+        unitLength: parseFloat(unitLength) || 0,
+        beamWidth: parseFloat(beamWidth) || 0,
+        interEixo: parseFloat(interEixo) || 0,
+        // Save exclusions as well, though not explicitly requested, it's part of config
+        initialExclusion: parseFloat(initialExclusion) || 0,
+        finalExclusion: parseFloat(finalExclusion) || 0,
       }
-      // We don't await here to avoid blocking UI, just fire and forget
+
       updateProfile(user.id, { last_joist_config: savedConfig }).catch(
         (err) => {
           console.error('Failed to save joist config preference:', err)

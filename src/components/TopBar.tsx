@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useDrawing } from '@/context/DrawingContext'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,12 +12,15 @@ import {
   Eraser,
   CornerRightUp,
   AlignJustify,
+  Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Separator } from '@/components/ui/separator'
+import { ProjectSettingsModal } from '@/components/ProjectSettingsModal'
 
 export const TopBar: React.FC = () => {
-  const { tool, setTool, orthoMode, setOrthoMode } = useDrawing()
+  const { tool, setTool, orthoMode, setOrthoMode, projectName } = useDrawing()
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const tools = [
     {
@@ -86,46 +89,71 @@ export const TopBar: React.FC = () => {
   ] as const
 
   return (
-    <div className="h-20 border-b bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center px-4 gap-2 shadow-sm no-print relative overflow-x-auto">
-      <div className="absolute left-4 font-bold text-lg text-slate-800 hidden xl:block font-montserrat">
-        ProjLAJE
-      </div>
-      <div className="flex gap-2 items-center">
-        {tools.map((t) => (
+    <>
+      <div className="h-20 border-b bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center px-4 gap-2 shadow-sm no-print relative overflow-x-auto">
+        <div className="absolute left-4 font-bold text-lg text-slate-800 hidden xl:flex items-center gap-2 font-montserrat whitespace-nowrap">
+          <span>ProjLAJE</span>
+          {projectName && (
+            <>
+              <span className="text-slate-400 font-normal">|</span>
+              <span className="font-normal text-slate-600 truncate max-w-[200px]">
+                {projectName}
+              </span>
+            </>
+          )}
+        </div>
+        <div className="flex gap-2 items-center">
+          {tools.map((t) => (
+            <Button
+              key={t.id}
+              variant={tool === t.id ? 'default' : 'ghost'}
+              onClick={t.onClick}
+              className={cn(
+                'flex flex-col items-center justify-center h-16 w-20 gap-1 py-1',
+                tool === t.id
+                  ? 'bg-white shadow-sm text-primary hover:bg-white/90'
+                  : 'hover:bg-white/50',
+              )}
+            >
+              <t.icon className={cn('h-5 w-5', t.className)} />
+              <span className="text-[10px] font-medium leading-none">
+                {t.label}
+              </span>
+            </Button>
+          ))}
+
+          <Separator orientation="vertical" className="h-10 mx-2" />
+
           <Button
-            key={t.id}
-            variant={tool === t.id ? 'default' : 'ghost'}
-            onClick={t.onClick}
+            variant={orthoMode ? 'default' : 'ghost'}
+            onClick={() => setOrthoMode(!orthoMode)}
             className={cn(
               'flex flex-col items-center justify-center h-16 w-20 gap-1 py-1',
-              tool === t.id
+              orthoMode
                 ? 'bg-white shadow-sm text-primary hover:bg-white/90'
                 : 'hover:bg-white/50',
             )}
           >
-            <t.icon className={cn('h-5 w-5', t.className)} />
-            <span className="text-[10px] font-medium leading-none">
-              {t.label}
-            </span>
+            <CornerRightUp className="h-5 w-5" />
+            <span className="text-[10px] font-medium leading-none">ORTHO</span>
           </Button>
-        ))}
 
-        <Separator orientation="vertical" className="h-10 mx-2" />
+          <Separator orientation="vertical" className="h-10 mx-2" />
 
-        <Button
-          variant={orthoMode ? 'default' : 'ghost'}
-          onClick={() => setOrthoMode(!orthoMode)}
-          className={cn(
-            'flex flex-col items-center justify-center h-16 w-20 gap-1 py-1',
-            orthoMode
-              ? 'bg-white shadow-sm text-primary hover:bg-white/90'
-              : 'hover:bg-white/50',
-          )}
-        >
-          <CornerRightUp className="h-5 w-5" />
-          <span className="text-[10px] font-medium leading-none">ORTHO</span>
-        </Button>
+          <Button
+            variant="ghost"
+            onClick={() => setSettingsOpen(true)}
+            className="flex flex-col items-center justify-center h-16 w-20 gap-1 py-1 hover:bg-white/50"
+          >
+            <Settings className="h-5 w-5" />
+            <span className="text-[10px] font-medium leading-none">Config</span>
+          </Button>
+        </div>
       </div>
-    </div>
+      <ProjectSettingsModal
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+      />
+    </>
   )
 }

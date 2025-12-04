@@ -97,6 +97,7 @@ export type Database = {
           id: string
           is_active: boolean
           is_admin: boolean
+          last_joist_config: Json | null
           plan_id: string
           stripe_customer_id: string | null
           updated_at: string | null
@@ -108,6 +109,7 @@ export type Database = {
           id: string
           is_active?: boolean
           is_admin?: boolean
+          last_joist_config?: Json | null
           plan_id: string
           stripe_customer_id?: string | null
           updated_at?: string | null
@@ -119,6 +121,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_admin?: boolean
+          last_joist_config?: Json | null
           plan_id?: string
           stripe_customer_id?: string | null
           updated_at?: string | null
