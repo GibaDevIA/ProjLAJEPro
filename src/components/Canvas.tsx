@@ -11,6 +11,7 @@ import {
   isWorldPointInShape,
   getOrthogonalPoint,
   areLinesParallel,
+  SNAP_THRESHOLD_PX,
 } from '@/lib/geometry'
 import { Point, Shape, SlabConfig, TransverseRibConfig } from '@/types/drawing'
 import { ShapeRenderer } from './ShapeRenderer'
@@ -479,8 +480,19 @@ export const Canvas: React.FC = () => {
         y: p.y + dyWorld,
       }))
 
-      let bestSnap: { delta: Point; target: Point; type: any } | null = null
-      let minSnapDist = 8
+      let bestSnap: {
+        delta: Point
+        target: Point
+        type: 'vertex' | 'midpoint' | 'edge' | 'grid'
+        distance: number
+      } | null = null
+
+      const priorityMap: Record<string, number> = {
+        vertex: 4,
+        midpoint: 3,
+        edge: 2,
+        grid: 1,
+      }
 
       for (const p of proposedPoints) {
         const pScreen = worldToScreen(p, view)
@@ -492,16 +504,34 @@ export const Canvas: React.FC = () => {
           gridVisible,
         )
 
-        if (snap && snap.distance < minSnapDist) {
-          minSnapDist = snap.distance
-          const adjustment = {
-            x: snap.point.x - p.x,
-            y: snap.point.y - p.y,
+        if (snap) {
+          let isBetter = false
+          if (!bestSnap) {
+            isBetter = true
+          } else {
+            const currentPriority = priorityMap[snap.type] || 0
+            const bestPriority = priorityMap[bestSnap.type] || 0
+
+            if (currentPriority > bestPriority) {
+              isBetter = true
+            } else if (currentPriority === bestPriority) {
+              if (snap.distance < bestSnap.distance) {
+                isBetter = true
+              }
+            }
           }
-          bestSnap = {
-            delta: adjustment,
-            target: snap.targetPoint,
-            type: snap.type,
+
+          if (isBetter) {
+            const adjustment = {
+              x: snap.point.x - p.x,
+              y: snap.point.y - p.y,
+            }
+            bestSnap = {
+              delta: adjustment,
+              target: snap.targetPoint,
+              type: snap.type,
+              distance: snap.distance,
+            }
           }
         }
       }
@@ -509,8 +539,8 @@ export const Canvas: React.FC = () => {
       let finalPoints = proposedPoints
       if (bestSnap) {
         finalPoints = proposedPoints.map((p) => ({
-          x: p.x + bestSnap.delta.x,
-          y: p.y + bestSnap.delta.y,
+          x: p.x + bestSnap!.delta.x,
+          y: p.y + bestSnap!.delta.y,
         }))
         setSnapPoint({
           point: screenToWorld(bestSnap.target, view),
