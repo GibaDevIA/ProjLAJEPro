@@ -117,4 +117,5 @@ export interface SlabReportItem {
   ribsData?: RibReportData[]
   fillerCount?: number
   fillerType?: string
+  slabThickness?: number
 }

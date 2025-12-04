@@ -299,6 +299,77 @@ export const Sidebar: React.FC = () => {
     const noDataHtml =
       '<tr><td colspan="3" style="text-align: center; padding: 20px; color: #64748b;">Nenhum cômodo encontrado neste projeto.</td></tr>'
 
+    // Calculate Summary Data
+    const summaryData = reportData.reduce(
+      (acc, item) => {
+        const key = `${item.type}-${item.slabThickness || 0}`
+        if (!acc[key]) {
+          acc[key] = {
+            type: item.type,
+            height: item.slabThickness || 0,
+            area: 0,
+            joists: 0,
+          }
+        }
+        acc[key].area += item.area
+        acc[key].joists += item.vigotaCount
+        return acc
+      },
+      {} as Record<
+        string,
+        { type: string; height: number; area: number; joists: number }
+      >,
+    )
+
+    const totalArea = reportData.reduce((sum, item) => sum + item.area, 0)
+    const totalJoists = reportData.reduce(
+      (sum, item) => sum + item.vigotaCount,
+      0,
+    )
+
+    const summaryRows = Object.values(summaryData)
+      .sort((a, b) => a.type.localeCompare(b.type))
+      .map((row) => {
+        return `
+        <tr>
+          <td>${row.type}</td>
+          <td>${row.height > 0 ? `${row.height} cm` : '-'}</td>
+          <td>${row.area.toFixed(2).replace('.', ',')} m²</td>
+          <td>${row.joists} un</td>
+        </tr>
+      `
+      })
+      .join('')
+
+    const summaryHtml = `
+      <div style="margin-top: 30px; page-break-inside: avoid;">
+        <h3 style="font-size: 14px; margin-bottom: 8px; color: #0f172a; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">Resumo Geral do Projeto</h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+          <thead>
+            <tr>
+              <th style="background-color: #e2e8f0; text-align: left; padding: 6px; border: 1px solid #cbd5e1;">Tipo de Laje</th>
+              <th style="background-color: #e2e8f0; text-align: left; padding: 6px; border: 1px solid #cbd5e1;">Altura Base</th>
+              <th style="background-color: #e2e8f0; text-align: left; padding: 6px; border: 1px solid #cbd5e1;">Área Total</th>
+              <th style="background-color: #e2e8f0; text-align: left; padding: 6px; border: 1px solid #cbd5e1;">Qtd. Vigotas</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${
+              summaryRows ||
+              '<tr><td colspan="4" style="text-align:center; padding:8px;">Sem dados para resumo.</td></tr>'
+            }
+          </tbody>
+          <tfoot>
+            <tr style="background-color: #f1f5f9; font-weight: bold;">
+               <td colspan="2" style="padding: 6px; border: 1px solid #cbd5e1; text-align: right;">TOTAL GERAL</td>
+               <td style="padding: 6px; border: 1px solid #cbd5e1;">${totalArea.toFixed(2).replace('.', ',')} m²</td>
+               <td style="padding: 6px; border: 1px solid #cbd5e1;">${totalJoists} un</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    `
+
     // 4. Open Print Window
     const printWindow = window.open('', '_blank')
     if (printWindow) {
@@ -421,6 +492,8 @@ export const Sidebar: React.FC = () => {
                   ${rowsHtml || noDataHtml}
                 </tbody>
               </table>
+
+              ${summaryHtml}
             </div>
 
             <script>

@@ -946,6 +946,7 @@ export function generateSlabReportData(shapes: Shape[]): SlabReportItem[] {
       ribsData,
       fillerCount,
       fillerType,
+      slabThickness: config?.unitHeight,
     }
   })
 }
