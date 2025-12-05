@@ -54,6 +54,8 @@ interface DrawingContextType {
   setPendingRibConfig: React.Dispatch<
     React.SetStateAction<TransverseRibConfig | null>
   >
+  colorBySlabType: boolean
+  setColorBySlabType: (enabled: boolean) => void
 }
 
 const DrawingContext = createContext<DrawingContextType | undefined>(undefined)
@@ -70,6 +72,7 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
   const [gridVisible, setGridVisible] = useState(true)
   const [drawingStart, setDrawingStart] = useState<Point | null>(null)
   const [orthoMode, setOrthoMode] = useState(false)
+  const [colorBySlabType, setColorBySlabType] = useState(false)
 
   // Rib Configuration State
   const [pendingRibConfig, setPendingRibConfig] =
@@ -303,6 +306,8 @@ export const DrawingProvider = ({ children }: { children: ReactNode }) => {
         checkLimits,
         pendingRibConfig,
         setPendingRibConfig,
+        colorBySlabType,
+        setColorBySlabType,
       }}
     >
       {children}

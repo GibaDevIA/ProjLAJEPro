@@ -49,6 +49,7 @@ export const Canvas: React.FC = () => {
     orthoMode,
     pendingRibConfig,
     setPendingRibConfig,
+    colorBySlabType,
   } = useDrawing()
 
   // State for panning
@@ -1097,6 +1098,7 @@ export const Canvas: React.FC = () => {
                     view={view}
                     isSelected={activeShapeId === shape.id}
                     joistArrow={joistArrow}
+                    colorBySlabType={colorBySlabType}
                   />
                 )
               })}

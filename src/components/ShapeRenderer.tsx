@@ -15,6 +15,16 @@ interface ShapeRendererProps {
   view: ViewState
   isSelected: boolean
   joistArrow?: Shape
+  colorBySlabType?: boolean
+}
+
+const SLAB_COLORS: Record<string, string> = {
+  H8: '#ADD8E6',
+  H12: '#FFD700',
+  H16: '#FFA07A',
+  H20: '#90EE90',
+  H25: '#DDA0DD',
+  H30: '#F0E68C',
 }
 
 const DimensionRenderer: React.FC<ShapeRendererProps> = ({
@@ -239,6 +249,7 @@ const SlabRenderer: React.FC<ShapeRendererProps> = ({
   view,
   isSelected,
   joistArrow,
+  colorBySlabType,
 }) => {
   const screenPoints = shape.points.map((p) => worldToScreen(p, view))
 
@@ -334,18 +345,35 @@ const SlabRenderer: React.FC<ShapeRendererProps> = ({
   // Slab Label Properties
   const labelText = `${shape.properties?.label || `Laje`} (${area.toFixed(2)} m²)`
   const joistCountText = joistCount > 0 ? `(${joistCount}vt)` : ''
+  const slabType = shape.properties?.slabConfig?.type
 
-  // Calculate label box height
-  // Simplified height for Label + Count only: 24px
-  const labelBoxHeight = 24
-  const labelBoxY = -12 // Center vertically
+  // Coloring Logic
+  let fillColor = '#e0f7fa'
+  let fillOpacity = 0.3
+
+  if (colorBySlabType && slabType) {
+    const typeColor = SLAB_COLORS[slabType]
+    if (typeColor) {
+      fillColor = typeColor
+      fillOpacity = 0.5
+    }
+  }
+
+  // Layout for label box
+  let labelBoxHeight = 24
+  let labelBoxY = -12
+
+  if (colorBySlabType && slabType) {
+    labelBoxHeight = 38 // Increased height for second line
+    labelBoxY = -19
+  }
 
   return (
     <g className="group">
       <path
         d={pathData}
-        fill="#e0f7fa"
-        fillOpacity="0.3"
+        fill={fillColor}
+        fillOpacity={fillOpacity}
         stroke={isSelected ? '#16a34a' : '#343a40'}
         strokeWidth={isSelected ? 3 : 2}
         strokeLinejoin="round"
@@ -383,7 +411,7 @@ const SlabRenderer: React.FC<ShapeRendererProps> = ({
         />
       ))}
 
-      {/* Slab Label Only (No Summary) */}
+      {/* Slab Label */}
       <g transform={`translate(${centroid.x}, ${centroid.y})`}>
         <rect
           x="-50"
@@ -398,7 +426,7 @@ const SlabRenderer: React.FC<ShapeRendererProps> = ({
         />
         <text
           x="0"
-          y={4} // Vertically centered in 24px box
+          y={colorBySlabType && slabType ? -2 : 4} // Shift up if 2 lines
           textAnchor="middle"
           className="text-[10px] font-bold pointer-events-none select-none"
           fill="#1f2937"
@@ -406,6 +434,18 @@ const SlabRenderer: React.FC<ShapeRendererProps> = ({
         >
           {labelText} {joistCountText}
         </text>
+        {colorBySlabType && slabType && (
+          <text
+            x="0"
+            y={12}
+            textAnchor="middle"
+            className="text-[10px] font-bold pointer-events-none select-none"
+            fill="#1f2937" // Use a distinct color or same? Requirement says "separate text line".
+            style={{ fontSize: '10px', fontFamily: 'Inter' }}
+          >
+            {slabType}
+          </text>
+        )}
       </g>
       {dimensions}
     </g>

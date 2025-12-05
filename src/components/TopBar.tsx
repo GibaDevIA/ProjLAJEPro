@@ -14,6 +14,7 @@ import {
   Loader2,
   LayoutTemplate,
   LogOut,
+  Palette,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -46,6 +47,8 @@ export const TopBar = () => {
     loadFromJSON,
     resetView,
     isLoadingProject,
+    colorBySlabType,
+    setColorBySlabType,
   } = useDrawing()
 
   const [isSaving, setIsSaving] = useState(false)
@@ -358,6 +361,20 @@ export const TopBar = () => {
         {!isDashboard ? (
           <>
             <div className="hidden md:flex items-center gap-2 mr-2">
+              {/* Toggle Slab Coloring */}
+              <Button
+                variant={colorBySlabType ? 'secondary' : 'outline'}
+                size="sm"
+                className={`gap-2 ${colorBySlabType ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-300' : ''}`}
+                onClick={() => setColorBySlabType(!colorBySlabType)}
+                title="Colorir por Tipo de Laje"
+              >
+                <Palette className="h-4 w-4" />
+                <span className="hidden xl:inline">Colorir Lajes</span>
+              </Button>
+
+              <div className="h-6 w-px bg-slate-200 mx-1" />
+
               {/* File Input for JSON Upload */}
               <input
                 type="file"
@@ -427,6 +444,13 @@ export const TopBar = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Menu</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setColorBySlabType(!colorBySlabType)}
+                >
+                  <Palette className="mr-2 h-4 w-4" />
+                  Colorir por Tipo de Laje
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate('/dashboard')}>
                   <LayoutTemplate className="mr-2 h-4 w-4" />
