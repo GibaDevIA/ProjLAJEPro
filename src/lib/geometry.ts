@@ -737,6 +737,8 @@ export function calculateFillerCount(
     }
   })
 
+  // Modified to return just the specific filler label part (e.g., "Lajota H8 Cerâmica")
+  // We'll construct the full descriptive label later
   const typeLabel = `Lajota ${config.type} (${config.unitWidth}x${config.unitLength})`
 
   return { count: totalCount, type: typeLabel }
@@ -1049,7 +1051,6 @@ export function generateProjectSlabSummary(
         ),
     )
 
-    // Find intersecting ribs
     const slabRibs = ribs.filter((r) => {
       const mid = {
         x: (r.points[0].x + r.points[1].x) / 2,
@@ -1073,8 +1074,6 @@ export function generateProjectSlabSummary(
                 ? 'Concreto Maciço'
                 : materialKey
 
-        // Construct key and label: "Lajota H8 Cerâmica (30x20)"
-        // This satisfies "separated by type and height" (and material usually implied in type for slabs)
         const typeLabel = `Lajota ${config.type} ${material} (${config.unitWidth}x${config.unitLength})`
 
         const current = summaryMap.get(typeLabel) || 0
@@ -1089,4 +1088,94 @@ export function generateProjectSlabSummary(
       count,
     }))
     .sort((a, b) => a.typeLabel.localeCompare(b.typeLabel))
+}
+
+export interface ProjectSummaryData {
+  slabType: string
+  totalArea: number
+  fillerDetails: { description: string; count: number }[]
+}
+
+export function generateDetailedProjectSummary(
+  shapes: Shape[],
+): ProjectSummaryData[] {
+  const slabs = shapes.filter(
+    (s) => s.type === 'rectangle' || s.type === 'polygon',
+  )
+  const ribs = shapes.filter((s) => s.type === 'rib')
+
+  // Map: SlabType (e.g. "H8") -> { area: number, fillers: Map<Description, count> }
+  const groupMap = new Map<
+    string,
+    { area: number; fillers: Map<string, number> }
+  >()
+
+  slabs.forEach((slab) => {
+    const config = slab.properties?.slabConfig
+    if (!config) return
+
+    const type = config.type || 'Outros'
+    if (!groupMap.has(type)) {
+      groupMap.set(type, { area: 0, fillers: new Map() })
+    }
+    const group = groupMap.get(type)!
+
+    // Area
+    const joistArrow = shapes.find(
+      (s) =>
+        s.type === 'arrow' &&
+        s.properties?.isJoist &&
+        isWorldPointInShape(
+          {
+            x: (s.points[0].x + s.points[1].x) / 2,
+            y: (s.points[0].y + s.points[1].y) / 2,
+          },
+          slab,
+        ),
+    )
+
+    let area = slab.properties?.area || calculatePolygonArea(slab.points)
+    if (joistArrow) {
+      area = calculateNetSlabArea(slab, joistArrow)
+    }
+    group.area += area
+
+    // Fillers
+    if (joistArrow) {
+      const slabRibs = ribs.filter((r) => {
+        const mid = {
+          x: (r.points[0].x + r.points[1].x) / 2,
+          y: (r.points[0].y + r.points[1].y) / 2,
+        }
+        return isWorldPointInShape(mid, slab)
+      })
+
+      const { count } = calculateFillerCount(slab, joistArrow, slabRibs)
+      if (count > 0) {
+        const materialKey = config.material || 'concrete'
+        const material =
+          materialKey === 'ceramic'
+            ? 'Cerâmica'
+            : materialKey === 'eps'
+              ? 'EPS'
+              : materialKey === 'concrete'
+                ? 'Concreto Maciço'
+                : materialKey
+
+        const fillerDesc = `Lajota ${material} ${config.type}` // e.g. "Lajota Cerâmica H8"
+        const currentCount = group.fillers.get(fillerDesc) || 0
+        group.fillers.set(fillerDesc, currentCount + count)
+      }
+    }
+  })
+
+  return Array.from(groupMap.entries())
+    .map(([slabType, data]) => ({
+      slabType,
+      totalArea: data.area,
+      fillerDetails: Array.from(data.fillers.entries()).map(
+        ([desc, count]) => ({ description: desc, count }),
+      ),
+    }))
+    .sort((a, b) => a.slabType.localeCompare(b.slabType))
 }

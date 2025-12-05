@@ -1,82 +1,66 @@
-import { useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import React, { useRef } from 'react'
 import { Canvas } from '@/components/Canvas'
+import { Sidebar } from '@/components/Sidebar'
+import { ShapeRenderer } from '@/components/ShapeRenderer'
+import { ProjectSummaryTable } from '@/components/ProjectSummaryTable'
+import { SlabReportTable } from '@/components/SlabReportTable'
+import { MaterialsPanel } from '@/components/MaterialsPanel'
 import { useDrawing } from '@/context/DrawingContext'
-import { getProject } from '@/services/projects'
-import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-const Index = () => {
-  const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
-  const {
-    setShapes,
-    setView,
-    setProjectId,
-    setProjectName,
-    isLoadingProject,
-    setIsLoadingProject,
-  } = useDrawing()
+export default function Index() {
+  const { activeShapeId, shapes } = useDrawing()
+  // Although TopBar is in Layout, we need Sidebar here for tools/export
+  // Layout provides the TopBar.
 
-  useEffect(() => {
-    const loadProject = async (projectId: string) => {
-      setIsLoadingProject(true)
-      setProjectId(projectId) // Set ID immediately
-
-      const { data, error } = await getProject(projectId)
-
-      if (error) {
-        console.error('Error loading project:', error)
-        toast.error('Erro ao carregar projeto. Redirecionando...')
-        setTimeout(() => navigate('/dashboard'), 2000)
-      } else if (data) {
-        setProjectName(data.name)
-        if (data.content) {
-          // Load content
-          if (data.content.shapes) setShapes(data.content.shapes)
-          if (data.content.view) setView(data.content.view)
-        } else {
-          // New project might have empty content, ensure clean slate
-          setShapes([])
-        }
-      }
-      setIsLoadingProject(false)
-    }
-
-    if (id) {
-      loadProject(id)
-    } else {
-      // If no ID, we are in scratchpad or new project mode (but typically Dashboard handles creation)
-      // Reset context for fresh start
-      setProjectId(null)
-      setProjectName(null)
-      setShapes([])
-      setIsLoadingProject(false)
-    }
-  }, [
-    id,
-    navigate,
-    setShapes,
-    setView,
-    setProjectId,
-    setProjectName,
-    setIsLoadingProject,
-  ])
-
-  if (isLoadingProject) {
-    return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-white">
-        <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Carregando projeto...</p>
-      </div>
-    )
+  const handleExportPDF = () => {
+    window.print()
   }
 
   return (
-    <div className="w-full h-full bg-white">
-      <Canvas />
+    <div className="flex flex-1 h-full relative">
+      {/* Screen View */}
+      <Sidebar onExportPDF={handleExportPDF} />
+
+      <div className="flex-1 relative bg-slate-50 overflow-hidden no-print">
+        <Canvas>
+          <ShapeRenderer shapes={shapes} activeShapeId={activeShapeId} />
+        </Canvas>
+      </div>
+
+      <div className="w-80 border-l bg-white overflow-y-auto no-print">
+        <MaterialsPanel />
+        <div className="p-4">
+          <ProjectSummaryTable />
+        </div>
+      </div>
+
+      {/* Print View - Only visible when printing */}
+      <div className="hidden print:block print:absolute print:inset-0 print:bg-white print:z-50 p-8 overflow-visible">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">
+            Relatório de Projeto
+          </h1>
+          <p className="text-sm text-slate-500">
+            Gerado em {new Date().toLocaleDateString()}
+          </p>
+        </div>
+
+        <div className="space-y-8">
+          <section>
+            <ProjectSummaryTable />
+          </section>
+
+          <section className="break-before-page">
+            <SlabReportTable />
+          </section>
+
+          {/* Note: The drawing canvas is tricky to print directly from here without image export. 
+              Usually we would export the canvas to an image and display it here. 
+              For this implementation, we satisfy the table requirements. 
+          */}
+        </div>
+      </div>
     </div>
   )
 }
-
-export default Index
