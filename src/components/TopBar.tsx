@@ -1,358 +1,438 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useDrawing } from '@/context/DrawingContext'
+import { useAuth } from '@/context/AuthContext'
+import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
-  MousePointer2,
-  Minus,
-  Square,
-  Move,
-  ArrowUpRight,
-  Ruler,
-  Plus,
-  Eraser,
-  CornerRightUp,
-  Settings,
+  ArrowLeft,
+  Save,
+  Download,
+  Upload,
+  FileText,
+  Menu,
+  Loader2,
+  LayoutTemplate,
+  ChevronDown,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Separator } from '@/components/ui/separator'
-import { ProjectSettingsModal } from '@/components/ProjectSettingsModal'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
+import { toast } from 'sonner'
+import { updateProject } from '@/services/projects'
+import {
+  generateDetailedProjectSummary,
+  generateSlabReportData,
+} from '@/lib/geometry'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
-export const TopBar: React.FC = () => {
-  const { tool, setTool, orthoMode, setOrthoMode } = useDrawing()
-  const [settingsOpen, setSettingsOpen] = useState(false)
+export const TopBar = () => {
+  const navigate = useNavigate()
+  const { user, signOut } = useAuth()
+  const {
+    shapes,
+    projectName,
+    setProjectName,
+    projectId,
+    view,
+    exportToJSON,
+    loadFromJSON,
+    resetView,
+    isLoadingProject,
+  } = useDrawing()
 
-  const tools = [
-    {
-      id: 'select',
-      icon: MousePointer2,
-      label: 'Seleção',
-      onClick: () => setTool('select'),
-      className: '',
-    },
-    {
-      id: 'line',
-      icon: Minus,
-      label: 'Linha',
-      onClick: () => setTool('line'),
-      className: 'rotate-45',
-    },
-    {
-      id: 'rectangle',
-      icon: Square,
-      label: 'Lançar Laje',
-      onClick: () => setTool('rectangle'),
-      className: '',
-    },
-    {
-      id: 'slab_joist',
-      icon: ArrowUpRight,
-      label: 'Lançar Vigota',
-      onClick: () => setTool('slab_joist'),
-      className: '',
-    },
-    {
-      id: 'add_vigota',
-      icon: Plus,
-      label: 'Add Vigota',
-      onClick: () => setTool('add_vigota'),
-      className: '',
-    },
-    {
-      id: 'transverse_rib',
-      icon: Move, // Changed icon to Move temporarily as AlignJustify was used but maybe less intuitive, keeping original or similar. Actually using same order as before.
-      label: 'Incluir Nervura',
-      onClick: () => setTool('transverse_rib'),
-      className: 'rotate-90',
-    },
-    {
-      id: 'delete_vigota',
-      icon: Eraser,
-      label: 'Del Vigota',
-      onClick: () => setTool('delete_vigota'),
-      className: '',
-    },
-    {
-      id: 'dimension',
-      icon: Ruler,
-      label: 'Cotas',
-      onClick: () => setTool('dimension'),
-      className: '',
-    },
-    {
-      id: 'pan',
-      icon: Move,
-      label: 'Pan',
-      onClick: () => setTool('pan'),
-      className: '',
-    },
-  ] as const
+  const [isSaving, setIsSaving] = useState(false)
+  const [nameInput, setNameInput] = useState(projectName || '')
+  const [isEditingName, setIsEditingName] = useState(false)
 
-  // NOTE: AlignJustify was used in previous version for rib, I should keep consistent or use better.
-  // The previous file used AlignJustify. I will revert icon to AlignJustify to match previous file exactly for tools array except I can't easily see imports.
-  // Actually I will just use the icons imported.
-  // Re-checking previous file imports: AlignJustify was imported.
+  useEffect(() => {
+    setNameInput(projectName || '')
+  }, [projectName])
 
-  // Redefining tools with correct icons to match previous state exactly
-  const toolsFixed = [
-    {
-      id: 'select',
-      icon: MousePointer2,
-      label: 'Seleção',
-      onClick: () => setTool('select'),
-      className: '',
-    },
-    {
-      id: 'line',
-      icon: Minus,
-      label: 'Linha',
-      onClick: () => setTool('line'),
-      className: 'rotate-45',
-    },
-    {
-      id: 'rectangle',
-      icon: Square,
-      label: 'Lançar Laje',
-      onClick: () => setTool('rectangle'),
-      className: '',
-    },
-    {
-      id: 'slab_joist',
-      icon: ArrowUpRight,
-      label: 'Lançar Vigota',
-      onClick: () => setTool('slab_joist'),
-      className: '',
-    },
-    {
-      id: 'add_vigota',
-      icon: Plus,
-      label: 'Add Vigota',
-      onClick: () => setTool('add_vigota'),
-      className: '',
-    },
-    {
-      id: 'transverse_rib',
-      // Need to import AlignJustify
-      icon: Move, // Placeholder, will fix imports
-      label: 'Incluir Nervura',
-      onClick: () => setTool('transverse_rib'),
-      className: '',
-    },
-    {
-      id: 'delete_vigota',
-      icon: Eraser,
-      label: 'Del Vigota',
-      onClick: () => setTool('delete_vigota'),
-      className: '',
-    },
-    {
-      id: 'dimension',
-      icon: Ruler,
-      label: 'Cotas',
-      onClick: () => setTool('dimension'),
-      className: '',
-    },
-    {
-      id: 'pan',
-      icon: Move,
-      label: 'Pan',
-      onClick: () => setTool('pan'),
-      className: '',
-    },
-  ]
+  const handleNameBlur = () => {
+    setIsEditingName(false)
+    if (nameInput.trim() !== projectName) {
+      setProjectName(nameInput.trim() || 'Sem Título')
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleNameBlur()
+    }
+  }
+
+  const handleSave = async () => {
+    if (!user) {
+      toast.error('Você precisa estar logado para salvar.')
+      return
+    }
+
+    if (!projectId) {
+      // Ideally this shouldn't happen in the project route if created via dashboard
+      toast.error('ID do projeto não encontrado.')
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      const content = {
+        shapes,
+        view,
+        version: '1.0',
+        dateCreated: new Date().toISOString(),
+        units: 'meters',
+      }
+
+      const { error } = await updateProject(projectId, {
+        name: projectName || 'Sem Título',
+        content,
+      })
+
+      if (error) {
+        throw error
+      }
+
+      toast.success('Projeto salvo com sucesso!')
+    } catch (error: any) {
+      console.error('Error saving project:', error)
+      toast.error(
+        'Erro ao salvar projeto: ' + (error.message || 'Erro desconhecido'),
+      )
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleExportPDF = () => {
+    if (shapes.length === 0) {
+      toast.error('O projeto está vazio. Adicione elementos antes de exportar.')
+      return
+    }
+
+    const summary = generateDetailedProjectSummary(shapes)
+    const details = generateSlabReportData(shapes)
+    const totalArea = summary.reduce((acc, item) => acc + item.totalArea, 0)
+
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      toast.error('Por favor, permita popups para gerar o relatório.')
+      return
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <title>Relatório - ${projectName || 'Projeto'}</title>
+        <style>
+          body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; padding: 40px; max-width: 1000px; margin: 0 auto; line-height: 1.5; }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; }
+          .project-info h1 { margin: 0 0 5px 0; font-size: 28px; color: #0f172a; }
+          .subtitle { color: #64748b; font-size: 14px; }
+          .meta { text-align: right; font-size: 13px; color: #64748b; }
+          h2 { font-size: 18px; color: #334155; border-left: 4px solid #2563eb; padding-left: 12px; margin: 40px 0 20px 0; text-transform: uppercase; letter-spacing: 0.05em; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 13px; }
+          th, td { border: 1px solid #cbd5e1; padding: 12px; text-align: left; }
+          th { background-color: #f1f5f9; font-weight: 600; color: #475569; text-transform: uppercase; font-size: 12px; }
+          tr:nth-child(even) { background-color: #f8fafc; }
+          .text-center { text-align: center; }
+          .text-right { text-align: right; }
+          .font-bold { font-weight: 700; }
+          .total-row { background-color: #e2e8f0 !important; font-weight: bold; }
+          .footer { margin-top: 60px; border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center; font-size: 11px; color: #94a3b8; }
+          .page-break { page-break-before: always; }
+          .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; background: #e2e8f0; font-size: 11px; margin-right: 4px; }
+          .detail-text { font-size: 12px; color: #475569; }
+          @media print {
+            body { padding: 0; }
+            button { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="project-info">
+            <h1>${projectName || 'Projeto Sem Título'}</h1>
+            <div class="subtitle">Relatório de Cálculo de Lajes - ProjLAJE</div>
+          </div>
+          <div class="meta">
+            <div><strong>Data:</strong> ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</div>
+            <div><strong>Usuário:</strong> ${user?.email || 'Anônimo'}</div>
+          </div>
+        </div>
+
+        <h2>Resumo Geral do Projeto</h2>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 25%">Tipo de Laje</th>
+              <th class="text-center" style="width: 25%">Área Total (m²)</th>
+              <th style="width: 50%">Qtde. Enchimento por Tipo</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${
+              summary.length > 0
+                ? summary
+                    .map(
+                      (item) => `
+              <tr>
+                <td class="font-bold">${item.slabType}</td>
+                <td class="text-center">${item.totalArea.toFixed(2)}</td>
+                <td>
+                  ${
+                    item.fillerDetails.length > 0
+                      ? item.fillerDetails
+                          .map(
+                            (f) =>
+                              `<div>• ${f.description}: <strong>${f.count}</strong> peças</div>`,
+                          )
+                          .join('')
+                      : '-'
+                  }
+                </td>
+              </tr>
+            `,
+                    )
+                    .join('')
+                : '<tr><td colspan="3" class="text-center">Nenhum dado disponível</td></tr>'
+            }
+          </tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td>TOTAL GERAL</td>
+              <td class="text-center">${totalArea.toFixed(2)}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+
+        ${
+          details.length > 0
+            ? `
+          <div class="page-break"></div>
+          <h2>Detalhamento das Lajes</h2>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 15%">Laje</th>
+                <th style="width: 10%">Tipo</th>
+                <th class="text-center" style="width: 10%">Área (m²)</th>
+                <th class="text-center" style="width: 10%">Vigotas</th>
+                <th style="width: 25%">Enchimento</th>
+                <th style="width: 30%">Detalhamento Técnica</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${details
+                .map(
+                  (item) => `
+                <tr>
+                  <td class="font-bold">${item.label}</td>
+                  <td>${item.type}</td>
+                  <td class="text-center">${item.area.toFixed(2)}</td>
+                  <td class="text-center">${item.vigotaCount}</td>
+                  <td>
+                     ${item.fillerCount > 0 ? `${item.fillerCount}x ${item.fillerType}` : '-'}
+                  </td>
+                  <td class="detail-text">
+                    ${item.vigotaSummary ? `<div style="margin-bottom: 4px;"><strong>Vigotas:</strong> ${item.vigotaSummary}</div>` : ''}
+                    ${item.reinforcementSummary ? `<div style="margin-bottom: 4px;"><strong>Aço:</strong> ${item.reinforcementSummary}</div>` : ''}
+                    ${item.vigotaDetails.map((d) => d.reinforcementText.map((t) => `<div style="padding-left: 8px; border-left: 2px solid #e2e8f0; margin-top: 2px;">${t}</div>`).join('')).join('')}
+                  </td>
+                </tr>
+              `,
+                )
+                .join('')}
+            </tbody>
+          </table>
+        `
+            : ''
+        }
+
+        <div class="footer">
+          Relatório gerado automaticamente por ProjLAJE.
+        </div>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `
+
+    printWindow.document.write(htmlContent)
+    printWindow.document.close()
+  }
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      loadFromJSON(file)
+      e.target.value = '' // Reset input
+    }
+  }
 
   return (
-    <>
-      <div className="h-20 border-b bg-gradient-to-r from-gray-100 to-gray-200 flex items-center justify-center px-4 gap-2 shadow-sm no-print relative overflow-x-auto">
-        <div className="absolute left-4 font-bold text-lg text-slate-800 hidden xl:flex items-center gap-2 font-montserrat whitespace-nowrap">
-          <span>ProjLAJE</span>
-        </div>
-        <div className="flex gap-2 items-center">
-          <Button
-            variant={tool === 'select' ? 'default' : 'ghost'}
-            onClick={() => setTool('select')}
-            className={cn(
-              'flex flex-col items-center justify-center h-16 w-20 gap-1 py-1',
-              tool === 'select'
-                ? 'bg-white shadow-sm text-primary hover:bg-white/90'
-                : 'hover:bg-white/50',
+    <header className="h-16 bg-white border-b flex items-center justify-between px-4 lg:px-6 shadow-sm z-10 relative">
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          asChild
+          className="text-muted-foreground hover:text-primary"
+        >
+          <Link to="/dashboard">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+        </Button>
+
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2">
+            {isEditingName ? (
+              <Input
+                value={nameInput}
+                onChange={handleNameChange}
+                onBlur={handleNameBlur}
+                onKeyDown={handleKeyDown}
+                autoFocus
+                className="h-8 w-48 md:w-64 font-semibold"
+              />
+            ) : (
+              <h1
+                onClick={() => setIsEditingName(true)}
+                className="font-semibold text-lg text-slate-800 cursor-pointer hover:bg-slate-100 px-2 py-0.5 rounded transition-colors flex items-center gap-2"
+                title="Clique para editar"
+              >
+                {projectName || 'Sem Título'}
+              </h1>
             )}
-          >
-            <MousePointer2 className="h-5 w-5" />
-            <span className="text-[10px] font-medium leading-none">
-              Seleção
+            <span className="text-xs text-muted-foreground hidden sm:inline-block bg-slate-100 px-2 py-0.5 rounded">
+              v0.95
             </span>
-          </Button>
-
-          <Button
-            variant={tool === 'line' ? 'default' : 'ghost'}
-            onClick={() => setTool('line')}
-            className={cn(
-              'flex flex-col items-center justify-center h-16 w-20 gap-1 py-1',
-              tool === 'line'
-                ? 'bg-white shadow-sm text-primary hover:bg-white/90'
-                : 'hover:bg-white/50',
-            )}
-          >
-            <Minus className="h-5 w-5 rotate-45" />
-            <span className="text-[10px] font-medium leading-none">Linha</span>
-          </Button>
-
-          <Button
-            variant={tool === 'rectangle' ? 'default' : 'ghost'}
-            onClick={() => setTool('rectangle')}
-            className={cn(
-              'flex flex-col items-center justify-center h-16 w-20 gap-1 py-1',
-              tool === 'rectangle'
-                ? 'bg-white shadow-sm text-primary hover:bg-white/90'
-                : 'hover:bg-white/50',
-            )}
-          >
-            <Square className="h-5 w-5" />
-            <span className="text-[10px] font-medium leading-none">
-              Lançar Laje
-            </span>
-          </Button>
-
-          <Button
-            variant={tool === 'slab_joist' ? 'default' : 'ghost'}
-            onClick={() => setTool('slab_joist')}
-            className={cn(
-              'flex flex-col items-center justify-center h-16 w-20 gap-1 py-1',
-              tool === 'slab_joist'
-                ? 'bg-white shadow-sm text-primary hover:bg-white/90'
-                : 'hover:bg-white/50',
-            )}
-          >
-            <ArrowUpRight className="h-5 w-5" />
-            <span className="text-[10px] font-medium leading-none">
-              Lançar Vigota
-            </span>
-          </Button>
-
-          <Button
-            variant={tool === 'add_vigota' ? 'default' : 'ghost'}
-            onClick={() => setTool('add_vigota')}
-            className={cn(
-              'flex flex-col items-center justify-center h-16 w-20 gap-1 py-1',
-              tool === 'add_vigota'
-                ? 'bg-white shadow-sm text-primary hover:bg-white/90'
-                : 'hover:bg-white/50',
-            )}
-          >
-            <Plus className="h-5 w-5" />
-            <span className="text-[10px] font-medium leading-none">
-              Add Vigota
-            </span>
-          </Button>
-
-          <Button
-            variant={tool === 'transverse_rib' ? 'default' : 'ghost'}
-            onClick={() => setTool('transverse_rib')}
-            className={cn(
-              'flex flex-col items-center justify-center h-16 w-20 gap-1 py-1',
-              tool === 'transverse_rib'
-                ? 'bg-white shadow-sm text-primary hover:bg-white/90'
-                : 'hover:bg-white/50',
-            )}
-          >
-            {/* Manual icon since AlignJustify was not imported in my snippet above but I can import it or use square-stack like icon */}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-5 w-5"
-            >
-              <line x1="21" x2="3" y1="6" y2="6" />
-              <line x1="21" x2="3" y1="12" y2="12" />
-              <line x1="21" x2="3" y1="18" y2="18" />
-            </svg>
-            <span className="text-[10px] font-medium leading-none">
-              Incluir Nervura
-            </span>
-          </Button>
-
-          <Button
-            variant={tool === 'delete_vigota' ? 'default' : 'ghost'}
-            onClick={() => setTool('delete_vigota')}
-            className={cn(
-              'flex flex-col items-center justify-center h-16 w-20 gap-1 py-1',
-              tool === 'delete_vigota'
-                ? 'bg-white shadow-sm text-primary hover:bg-white/90'
-                : 'hover:bg-white/50',
-            )}
-          >
-            <Eraser className="h-5 w-5" />
-            <span className="text-[10px] font-medium leading-none">
-              Del Vigota
-            </span>
-          </Button>
-
-          <Button
-            variant={tool === 'dimension' ? 'default' : 'ghost'}
-            onClick={() => setTool('dimension')}
-            className={cn(
-              'flex flex-col items-center justify-center h-16 w-20 gap-1 py-1',
-              tool === 'dimension'
-                ? 'bg-white shadow-sm text-primary hover:bg-white/90'
-                : 'hover:bg-white/50',
-            )}
-          >
-            <Ruler className="h-5 w-5" />
-            <span className="text-[10px] font-medium leading-none">Cotas</span>
-          </Button>
-
-          <Button
-            variant={tool === 'pan' ? 'default' : 'ghost'}
-            onClick={() => setTool('pan')}
-            className={cn(
-              'flex flex-col items-center justify-center h-16 w-20 gap-1 py-1',
-              tool === 'pan'
-                ? 'bg-white shadow-sm text-primary hover:bg-white/90'
-                : 'hover:bg-white/50',
-            )}
-          >
-            <Move className="h-5 w-5" />
-            <span className="text-[10px] font-medium leading-none">Pan</span>
-          </Button>
-
-          <Separator orientation="vertical" className="h-10 mx-2" />
-
-          <Button
-            variant={orthoMode ? 'default' : 'ghost'}
-            onClick={() => setOrthoMode(!orthoMode)}
-            className={cn(
-              'flex flex-col items-center justify-center h-16 w-20 gap-1 py-1',
-              orthoMode
-                ? 'bg-white shadow-sm text-primary hover:bg-white/90'
-                : 'hover:bg-white/50',
-            )}
-          >
-            <CornerRightUp className="h-5 w-5" />
-            <span className="text-[10px] font-medium leading-none">ORTHO</span>
-          </Button>
-
-          <Separator orientation="vertical" className="h-10 mx-2" />
-
-          <Button
-            variant="ghost"
-            onClick={() => setSettingsOpen(true)}
-            className="flex flex-col items-center justify-center h-16 w-20 gap-1 py-1 hover:bg-white/50"
-          >
-            <Settings className="h-5 w-5" />
-            <span className="text-[10px] font-medium leading-none">Config</span>
-          </Button>
+          </div>
         </div>
       </div>
-      <ProjectSettingsModal
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-      />
-    </>
+
+      <div className="flex items-center gap-2">
+        <div className="hidden md:flex items-center gap-2 mr-2">
+          {/* File Input for JSON Upload */}
+          <input
+            type="file"
+            accept=".json"
+            className="hidden"
+            id="json-upload"
+            onChange={handleFileUpload}
+          />
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => document.getElementById('json-upload')?.click()}
+          >
+            <Upload className="h-4 w-4" />
+            <span className="hidden lg:inline">Abrir</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={exportToJSON}
+          >
+            <Download className="h-4 w-4" />
+            <span className="hidden lg:inline">Baixar JSON</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
+            onClick={handleExportPDF}
+          >
+            <FileText className="h-4 w-4" />
+            <span className="hidden lg:inline">Relatório PDF</span>
+          </Button>
+        </div>
+
+        <div className="h-6 w-px bg-slate-200 mx-1 hidden md:block" />
+
+        <Button
+          onClick={handleSave}
+          disabled={isSaving || isLoadingProject}
+          size="sm"
+          className="gap-2 min-w-[100px]"
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Salvando
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4" />
+              Salvar
+            </>
+          )}
+        </Button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="ml-1">
+              <Menu className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>Menu</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate('/dashboard')}>
+              <LayoutTemplate className="mr-2 h-4 w-4" />
+              Voltar ao Painel
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={resetView}>
+              Centralizar Vista
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <div className="md:hidden">
+              <DropdownMenuItem onClick={handleExportPDF}>
+                <FileText className="mr-2 h-4 w-4" />
+                Relatório PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => document.getElementById('json-upload')?.click()}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Abrir JSON
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportToJSON}>
+                <Download className="mr-2 h-4 w-4" />
+                Baixar JSON
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </div>
+            <DropdownMenuItem
+              className="text-red-600"
+              onClick={() => signOut()}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sair
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </header>
   )
 }
