@@ -24,48 +24,54 @@ import Layout from './components/Layout'
 import { AuthProvider } from '@/context/AuthContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AdminRoute } from '@/components/AdminRoute'
+import { DrawingProvider } from '@/context/DrawingContext'
 
 const App = () => (
   <BrowserRouter
     future={{ v7_startTransition: false, v7_relativeSplatPath: false }}
   >
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/pricing" element={<Pricing />} />
+      <DrawingProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/pricing" element={<Pricing />} />
 
-          {/* Public Informational Pages */}
-          <Route path="/terms" element={<TermsOfUse />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/contact" element={<Contact />} />
+            {/* Public Informational Pages */}
+            <Route path="/terms" element={<TermsOfUse />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/contact" element={<Contact />} />
 
-          <Route path="/success" element={<Success />} />
-          <Route path="/cancel" element={<Cancel />} />
+            <Route path="/success" element={<Success />} />
+            <Route path="/cancel" element={<Cancel />} />
 
-          <Route element={<AdminRoute />}>
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/expiring-plans" element={<ExpiringPlans />} />
-          </Route>
-
-          <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/dashboard/subscription" element={<Subscription />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route element={<Layout />}>
-              <Route path="/project" element={<Index />} />
-              <Route path="/project/:id" element={<Index />} />
+            <Route element={<AdminRoute />}>
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/expiring-plans" element={<ExpiringPlans />} />
             </Route>
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </TooltipProvider>
+
+            <Route element={<ProtectedRoute />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route
+                path="/dashboard/subscription"
+                element={<Subscription />}
+              />
+              <Route path="/profile" element={<Profile />} />
+              <Route element={<Layout />}>
+                <Route path="/project" element={<Index />} />
+                <Route path="/project/:id" element={<Index />} />
+              </Route>
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </TooltipProvider>
+      </DrawingProvider>
     </AuthProvider>
   </BrowserRouter>
 )

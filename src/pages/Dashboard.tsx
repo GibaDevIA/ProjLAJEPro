@@ -10,7 +10,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  LogOut,
   Plus,
   User,
   LayoutTemplate,
@@ -56,9 +55,10 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { cn } from '@/lib/utils'
+import { TopBar } from '@/components/TopBar'
 
 const Dashboard = () => {
-  const { user, signOut } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [projects, setProjects] = useState<Project[]>([])
   const [loadingProjects, setLoadingProjects] = useState(true)
@@ -116,19 +116,6 @@ const Dashboard = () => {
       fetchSubscription()
     }
   }, [user, fetchProjects, fetchSubscription])
-
-  const handleLogout = async () => {
-    try {
-      const { error } = await signOut()
-      if (error) {
-        toast.error('Erro ao sair: ' + error.message)
-      } else {
-        navigate('/login')
-      }
-    } catch (e) {
-      toast.error('Erro inesperado ao sair')
-    }
-  }
 
   const openCreateDialog = async () => {
     if (!user) return
@@ -196,22 +183,8 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b h-16 flex items-center justify-between px-4 lg:px-8 shadow-sm">
-        <div className="font-bold text-xl font-montserrat text-slate-800 flex items-center gap-2">
-          <LayoutTemplate className="h-6 w-6 text-primary" />
-          ProjLAJE
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-muted-foreground hidden sm:inline-block">
-            {user?.email}
-          </span>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sair
-          </Button>
-        </div>
-      </header>
+      {/* Header Replaced by TopBar */}
+      <TopBar />
 
       {/* Main Content */}
       <main className="flex-1 container mx-auto py-12 px-4">

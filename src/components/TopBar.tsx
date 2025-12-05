@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useDrawing } from '@/context/DrawingContext'
 import { useAuth } from '@/context/AuthContext'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -13,7 +13,7 @@ import {
   Menu,
   Loader2,
   LayoutTemplate,
-  ChevronDown,
+  LogOut,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -34,6 +34,7 @@ import { ptBR } from 'date-fns/locale'
 
 export const TopBar = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, signOut } = useAuth()
   const {
     shapes,
@@ -51,9 +52,15 @@ export const TopBar = () => {
   const [nameInput, setNameInput] = useState(projectName || '')
   const [isEditingName, setIsEditingName] = useState(false)
 
+  const isDashboard = location.pathname === '/dashboard'
+
   useEffect(() => {
     setNameInput(projectName || '')
   }, [projectName])
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNameInput(e.target.value)
+  }
 
   const handleNameBlur = () => {
     setIsEditingName(false)
@@ -75,7 +82,6 @@ export const TopBar = () => {
     }
 
     if (!projectId) {
-      // Ideally this shouldn't happen in the project route if created via dashboard
       toast.error('ID do projeto não encontrado.')
       return
     }
@@ -107,6 +113,19 @@ export const TopBar = () => {
       )
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await signOut()
+      if (error) {
+        toast.error('Erro ao sair: ' + error.message)
+      } else {
+        navigate('/login')
+      }
+    } catch (e) {
+      toast.error('Erro inesperado ao sair')
     }
   }
 
@@ -288,150 +307,175 @@ export const TopBar = () => {
   return (
     <header className="h-16 bg-white border-b flex items-center justify-between px-4 lg:px-6 shadow-sm z-10 relative">
       <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          asChild
-          className="text-muted-foreground hover:text-primary"
-        >
-          <Link to="/dashboard">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-        </Button>
+        {!isDashboard ? (
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              asChild
+              className="text-muted-foreground hover:text-primary"
+            >
+              <Link to="/dashboard">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
 
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2">
-            {isEditingName ? (
-              <Input
-                value={nameInput}
-                onChange={handleNameChange}
-                onBlur={handleNameBlur}
-                onKeyDown={handleKeyDown}
-                autoFocus
-                className="h-8 w-48 md:w-64 font-semibold"
-              />
-            ) : (
-              <h1
-                onClick={() => setIsEditingName(true)}
-                className="font-semibold text-lg text-slate-800 cursor-pointer hover:bg-slate-100 px-2 py-0.5 rounded transition-colors flex items-center gap-2"
-                title="Clique para editar"
-              >
-                {projectName || 'Sem Título'}
-              </h1>
-            )}
-            <span className="text-xs text-muted-foreground hidden sm:inline-block bg-slate-100 px-2 py-0.5 rounded">
-              v0.95
-            </span>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                {isEditingName ? (
+                  <Input
+                    value={nameInput}
+                    onChange={handleNameChange}
+                    onBlur={handleNameBlur}
+                    onKeyDown={handleKeyDown}
+                    autoFocus
+                    className="h-8 w-48 md:w-64 font-semibold"
+                  />
+                ) : (
+                  <h1
+                    onClick={() => setIsEditingName(true)}
+                    className="font-semibold text-lg text-slate-800 cursor-pointer hover:bg-slate-100 px-2 py-0.5 rounded transition-colors flex items-center gap-2"
+                    title="Clique para editar"
+                  >
+                    {projectName || 'Sem Título'}
+                  </h1>
+                )}
+                <span className="text-xs text-muted-foreground hidden sm:inline-block bg-slate-100 px-2 py-0.5 rounded">
+                  v0.95
+                </span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="font-bold text-xl font-montserrat text-slate-800 flex items-center gap-2">
+            <LayoutTemplate className="h-6 w-6 text-primary" />
+            ProjLAJE
           </div>
-        </div>
+        )}
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="hidden md:flex items-center gap-2 mr-2">
-          {/* File Input for JSON Upload */}
-          <input
-            type="file"
-            accept=".json"
-            className="hidden"
-            id="json-upload"
-            onChange={handleFileUpload}
-          />
+        {!isDashboard ? (
+          <>
+            <div className="hidden md:flex items-center gap-2 mr-2">
+              {/* File Input for JSON Upload */}
+              <input
+                type="file"
+                accept=".json"
+                className="hidden"
+                id="json-upload"
+                onChange={handleFileUpload}
+              />
 
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={() => document.getElementById('json-upload')?.click()}
-          >
-            <Upload className="h-4 w-4" />
-            <span className="hidden lg:inline">Abrir</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={exportToJSON}
-          >
-            <Download className="h-4 w-4" />
-            <span className="hidden lg:inline">Baixar JSON</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
-            onClick={handleExportPDF}
-          >
-            <FileText className="h-4 w-4" />
-            <span className="hidden lg:inline">Relatório PDF</span>
-          </Button>
-        </div>
-
-        <div className="h-6 w-px bg-slate-200 mx-1 hidden md:block" />
-
-        <Button
-          onClick={handleSave}
-          disabled={isSaving || isLoadingProject}
-          size="sm"
-          className="gap-2 min-w-[100px]"
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Salvando
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4" />
-              Salvar
-            </>
-          )}
-        </Button>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="ml-1">
-              <Menu className="h-5 w-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Menu</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate('/dashboard')}>
-              <LayoutTemplate className="mr-2 h-4 w-4" />
-              Voltar ao Painel
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={resetView}>
-              Centralizar Vista
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <div className="md:hidden">
-              <DropdownMenuItem onClick={handleExportPDF}>
-                <FileText className="mr-2 h-4 w-4" />
-                Relatório PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
                 onClick={() => document.getElementById('json-upload')?.click()}
               >
-                <Upload className="mr-2 h-4 w-4" />
-                Abrir JSON
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={exportToJSON}>
-                <Download className="mr-2 h-4 w-4" />
-                Baixar JSON
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
+                <Upload className="h-4 w-4" />
+                <span className="hidden lg:inline">Abrir</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={exportToJSON}
+              >
+                <Download className="h-4 w-4" />
+                <span className="hidden lg:inline">Baixar JSON</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
+                onClick={handleExportPDF}
+              >
+                <FileText className="h-4 w-4" />
+                <span className="hidden lg:inline">Relatório PDF</span>
+              </Button>
             </div>
-            <DropdownMenuItem
-              className="text-red-600"
-              onClick={() => signOut()}
+
+            <div className="h-6 w-px bg-slate-200 mx-1 hidden md:block" />
+
+            <Button
+              onClick={handleSave}
+              disabled={isSaving || isLoadingProject}
+              size="sm"
+              className="gap-2 min-w-[100px]"
             >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Salvando
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Salvar
+                </>
+              )}
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="ml-1">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Menu</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/dashboard')}>
+                  <LayoutTemplate className="mr-2 h-4 w-4" />
+                  Voltar ao Painel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={resetView}>
+                  Centralizar Vista
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <div className="md:hidden">
+                  <DropdownMenuItem onClick={handleExportPDF}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Relatório PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() =>
+                      document.getElementById('json-upload')?.click()
+                    }
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    Abrir JSON
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportToJSON}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Baixar JSON
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </div>
+                <DropdownMenuItem
+                  className="text-red-600"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        ) : (
+          <>
+            <span className="text-sm text-muted-foreground hidden sm:inline-block">
+              {user?.email}
+            </span>
+            <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
               Sair
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            </Button>
+          </>
+        )}
       </div>
     </header>
   )
