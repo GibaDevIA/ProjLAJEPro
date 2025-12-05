@@ -119,3 +119,8 @@ export interface SlabReportItem {
   fillerType?: string
   slabThickness?: number
 }
+
+export interface ProjectSlabSummary {
+  typeLabel: string
+  count: number
+}

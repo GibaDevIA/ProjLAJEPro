@@ -6,6 +6,7 @@ import {
   SlabReportItem,
   SlabConfig,
   RibReportData,
+  ProjectSlabSummary,
 } from '@/types/drawing'
 
 export const SNAP_THRESHOLD_PX = 10
@@ -681,7 +682,7 @@ function getSegmentPolygonIntersectionLength(
   return (t1 - t0) * Math.sqrt(dx * dx + dy * dy)
 }
 
-function calculateFillerCount(
+export function calculateFillerCount(
   slab: Shape,
   joistArrow: Shape,
   ribs: Shape[],
@@ -1023,4 +1024,69 @@ export function getSlabReinforcementSummary(
   return entries.map((e) =>
     formatSlabSummaryText(e.quantity, e.diameter, e.length),
   )
+}
+
+export function generateProjectSlabSummary(
+  shapes: Shape[],
+): ProjectSlabSummary[] {
+  const slabs = shapes.filter(
+    (s) => s.type === 'rectangle' || s.type === 'polygon',
+  )
+  const ribs = shapes.filter((s) => s.type === 'rib')
+  const summaryMap = new Map<string, number>()
+
+  slabs.forEach((slab) => {
+    const joistArrow = shapes.find(
+      (s) =>
+        s.type === 'arrow' &&
+        s.properties?.isJoist &&
+        isWorldPointInShape(
+          {
+            x: (s.points[0].x + s.points[1].x) / 2,
+            y: (s.points[0].y + s.points[1].y) / 2,
+          },
+          slab,
+        ),
+    )
+
+    // Find intersecting ribs
+    const slabRibs = ribs.filter((r) => {
+      const mid = {
+        x: (r.points[0].x + r.points[1].x) / 2,
+        y: (r.points[0].y + r.points[1].y) / 2,
+      }
+      return isWorldPointInShape(mid, slab)
+    })
+
+    if (joistArrow && slab.properties?.slabConfig) {
+      const config = slab.properties.slabConfig
+      const { count } = calculateFillerCount(slab, joistArrow, slabRibs)
+
+      if (count > 0) {
+        const materialKey = config.material || 'concrete'
+        const material =
+          materialKey === 'ceramic'
+            ? 'Cerâmica'
+            : materialKey === 'eps'
+              ? 'EPS'
+              : materialKey === 'concrete'
+                ? 'Concreto Maciço'
+                : materialKey
+
+        // Construct key and label: "Lajota H8 Cerâmica (30x20)"
+        // This satisfies "separated by type and height" (and material usually implied in type for slabs)
+        const typeLabel = `Lajota ${config.type} ${material} (${config.unitWidth}x${config.unitLength})`
+
+        const current = summaryMap.get(typeLabel) || 0
+        summaryMap.set(typeLabel, current + count)
+      }
+    }
+  })
+
+  return Array.from(summaryMap.entries())
+    .map(([typeLabel, count]) => ({
+      typeLabel,
+      count,
+    }))
+    .sort((a, b) => a.typeLabel.localeCompare(b.typeLabel))
 }
